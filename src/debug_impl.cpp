@@ -2,9 +2,12 @@
 
 class DebugImpl : public CyberZooMocapClient
 {
-private:
-    /* data */
 public:
+    DebugImpl(int argc, char const *argv[]) : CyberZooMocapClient(argc, argv)
+    {
+    }
+
+private:
     
 };
 
@@ -13,8 +16,6 @@ public:
 
 int main(int argc, char const *argv[])
 {
-    DebugImpl client = DebugImpl();
-    client.print_startup();
-
+    DebugImpl client = DebugImpl(argc, argv);
     return 0;
 }

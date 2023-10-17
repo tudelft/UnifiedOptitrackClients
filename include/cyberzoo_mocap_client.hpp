@@ -1,21 +1,29 @@
 #ifndef H_CYBERZOO_OPTITRACK_CLIENT
 #define H_CYBERZOO_OPTITRACK_CLIENT
 
-class CyberZooMocapClient
+#include <vector>
+
+
+enum CoordinateSystem { UNCHANGED=0, NED, ENU};
+
+class CyberZooMocapClient 
 {
 private:
     float publish_frequency;
-    std::vector<uint> streaming_ids;
+    std::vector<unsigned int> streaming_ids;
+    CoordinateSystem co;
 
-protected:
     void read_po(int argc, char const *argv[]);
-
-public:
-    CyberZooMocapClient(/* args */);
-    ~CyberZooMocapClient();
 
     void print_startup() const;
     void print_coordinate_system() const;
+
+protected:
+   
+
+public:
+    CyberZooMocapClient(int argc, char const *argv[]);
+    ~CyberZooMocapClient();
 };
 
 #endif //H_CYBERZOO_OPTITRACK_CLIENT
