@@ -44,14 +44,18 @@ std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
 }
 
 CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
-    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::Y}
+    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}
 {
     this->print_startup();
     this->read_po(argc, argv);
 
     this->pClient = new NatNetClient();
 
-    this->attempt_server_connect();
+    ErrorCode ret = this->attempt_server_connect();
+    if (ret != ErrorCode_OK) {
+        // returning from main is best for cleanup?
+        return;
+    }
 
     //this->pClient->SetFrameReceivedCallback( &(this->natnet_data_handler), this->pClient )
 
@@ -171,7 +175,7 @@ left │                          │ right
     )" << '\n';
 }
 
-void CyberZooMocapClient::attempt_server_connect()
+ErrorCode CyberZooMocapClient::attempt_server_connect()
 {
     this->connectParams.connectionType = ConnectionType_Multicast;
     this->connectParams.serverCommandPort = NATNET_DEFAULT_PORT_COMMAND;
@@ -186,8 +190,10 @@ void CyberZooMocapClient::attempt_server_connect()
     std::cout << std::endl << "Attemption connect... ";
     if (ret == ErrorCode_OK)
         std::cout<<"Successful!"<<std::endl;
-    else
+    else {
         std::cout<<"Failed with error code "<<ret<<std::endl;
+        return ret;
+    }
 
     // detect up axis
     void* response;
@@ -199,9 +205,10 @@ void CyberZooMocapClient::attempt_server_connect()
         std::cout << this->upAxis << std::endl;
 	} else {
         std::cout << "Error code " << ret << std::endl;
+        return ret;
     }
 
-    return;
+    return ErrorCode_OK;
 }
 
 void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data, void* pUserData) const

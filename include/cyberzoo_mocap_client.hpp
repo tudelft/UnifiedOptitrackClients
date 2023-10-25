@@ -16,16 +16,16 @@ private:
     std::vector<unsigned int> streaming_ids;
     CoordinateSystem co;
     NatNetClient* pClient;
+    sNatNetClientConnectParams connectParams;
+    UpAxis upAxis;
+
 
     void read_po(int argc, char const *argv[]);
 
     void print_startup() const;
     void print_coordinate_system() const;
-    void attempt_server_connect();
+    ErrorCode attempt_server_connect();
     void natnet_data_handler(sFrameOfMocapData* data, void* pUserData) const;
-
-    sNatNetClientConnectParams connectParams;
-    UpAxis upAxis;
 
 
 protected:
