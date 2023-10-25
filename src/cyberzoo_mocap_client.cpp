@@ -5,6 +5,25 @@
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 
+#include <NatNetTypes.h>
+#include <NatNetCAPI.h>
+#include <NatNetClient.h>
+#include <NatNetRequests.h>
+
+std::ostream& operator<<(std::ostream& lhs, ErrorCode e) {
+    switch(e) {
+    case ErrorCode_OK: lhs <<               "OK"; break;
+    case ErrorCode_Internal: lhs <<         "Internal"; break;
+    case ErrorCode_External: lhs <<         "External"; break;
+    case ErrorCode_Network: lhs <<          "Network"; break;
+    case ErrorCode_Other: lhs <<            "Other"; break;
+    case ErrorCode_InvalidArgument: lhs <<  "InvalidArgument"; break;
+    case ErrorCode_InvalidOperation: lhs << "InvalidOperation"; break;
+    case ErrorCode_InvalidSize: lhs <<      "InvalidSize"; break;
+    }
+    return lhs;
+} 
+
 std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
     switch(e) {
     case UNCHANGED: lhs << "UNCHANGED"; break;
@@ -14,11 +33,28 @@ std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
     return lhs;
 } 
 
+std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
+    switch(e) {
+    case NOTDETECTED: lhs << "NOTDETECTED"; break;
+    case X: lhs << "X"; break;
+    case Y: lhs << "Y"; break;
+    case Z: lhs << "Z"; break;
+    }
+    return lhs;
+}
+
 CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
-    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}
+    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::Y}
 {
     this->print_startup();
     this->read_po(argc, argv);
+
+    this->pClient = new NatNetClient();
+
+    this->attempt_server_connect();
+
+    //this->pClient->SetFrameReceivedCallback( &(this->natnet_data_handler), this->pClient )
+
 }
 
 CyberZooMocapClient::~CyberZooMocapClient()
@@ -133,4 +169,42 @@ left │                          │ right
      │    Observers  (near)     │
      └──────────────────────────┘
     )" << '\n';
+}
+
+void CyberZooMocapClient::attempt_server_connect()
+{
+    this->connectParams.connectionType = ConnectionType_Multicast;
+    this->connectParams.serverCommandPort = NATNET_DEFAULT_PORT_COMMAND;
+    this->connectParams.serverDataPort = NATNET_DEFAULT_PORT_DATA;
+    this->connectParams.serverAddress = "192.168.0.153";
+    //this->connectParams.localAddress = "192.168.0.255"; // better to leave these blank, then it autodetects, i think
+    //this->connectParams.multicastAddress = "224.0.0.1";
+    this->connectParams.subscribedDataOnly = false; // no idea what this does
+    memset(this->connectParams.BitstreamVersion, 0, sizeof(this->connectParams.BitstreamVersion)); // no idea what this is
+
+    ErrorCode ret = this->pClient->Connect(this->connectParams);
+    std::cout << std::endl << "Attemption connect... ";
+    if (ret == ErrorCode_OK)
+        std::cout<<"Successful!"<<std::endl;
+    else
+        std::cout<<"Failed with error code "<<ret<<std::endl;
+
+    // detect up axis
+    void* response;
+    int nBytes;
+    std::cout<<"Detecting up axis... ";
+    ret = this->pClient->SendMessageAndWait("GetProperty,,Up Axis", &response, &nBytes);
+	if (ret == ErrorCode_OK) {
+        this->upAxis = static_cast<UpAxis>( ((char*)response)[0] - '0' );
+        std::cout << this->upAxis << std::endl;
+	} else {
+        std::cout << "Error code " << ret << std::endl;
+    }
+
+    return;
+}
+
+void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data, void* pUserData) const
+{
+    return;
 }
