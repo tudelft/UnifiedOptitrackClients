@@ -72,13 +72,9 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
     // process streaming ids (maybe merge into read_po)
     for (unsigned int i : this->streaming_ids) {
         if (this->trackRB(i) == -1) {
-            std::cout << "Cannot track Rigid Body with id " << i << ". Too many rigid bodies." << std::endl;
+            std::cout << "Cannot track Rigid Body with streaming id " << i << ". Too many rigid bodies." << std::endl;
         }
     }
-
-    // initialize filters for derivatives (maybe merge into read_po)
-    for (int i=0; i < MAX_TRACKED_RB; i++)
-        derFilter[i] = FilteredDifferentiator(10., 10., this->fSample);
 
     // instantiate client and make connection
     this->pClient = new NatNetClient();
@@ -86,6 +82,10 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
         // returning from main is best for cleanup?
         return;
     }
+
+    // initialize filters for derivatives (maybe merge into read_po)
+    for (int i=0; i < MAX_TRACKED_RB; i++)
+        derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
 
     // register callbacl
     ErrorCode ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
@@ -224,13 +224,14 @@ left │                          │ right
 ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 {
     std::cout << std::endl;
+    ErrorCode ret;
 #ifdef USE_DISCOVERY
-#define DISCOVERY_TIMEOUT 2000
+#define DISCOVERY_TIMEOUT 1000
 #define MAX_DISCOVERY 10
     sNatNetDiscoveredServer availableServers[MAX_DISCOVERY]; // just support one for now
     int n = 1;
     std::cout<<"Discovering NatNet servers (timeout " << DISCOVERY_TIMEOUT << "ms)... ";
-    ErrorCode ret = NatNet_BroadcastServerDiscovery(availableServers, &n, DISCOVERY_TIMEOUT);
+    ret = NatNet_BroadcastServerDiscovery(availableServers, &n, DISCOVERY_TIMEOUT);
     if ((ret != ErrorCode_OK) || (n == 0)) {
         if (ret != ErrorCode_OK)
             std::cout << "Failed with Error code " << ret << std::endl;
@@ -241,9 +242,9 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 
         std::cout<<std::endl<<"Troubleshooting: " << std::endl;
         std::cout<<"1. Verify connected to Motive network" << std::endl;
-        std::cout<<"2. Verify that 'interface' is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
+        std::cout<<"2. Verify that 'interface' is NOT set to 'loopback' in Motive 'Data Streaming Pane'" << std::endl;
         return ret;
-    } else if (n > 0) {
+    } else if (n > 1) {
         std::cout << "Failed: more than 1 server found:" << std::endl;
         for (int i=0; i<MAX_DISCOVERY; i++) {
             if (i >= n) { break; }
@@ -275,19 +276,20 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         availableServers[0].serverDescription.ConnectionMulticastAddress[2],
         availableServers[0].serverDescription.ConnectionMulticastAddress[3]
     );
+    this->connectParams.multicastAddress = mcastAddress;
 #else
     this->connectParams.connectionType = ConnectionType_Multicast;
     this->connectParams.serverCommandPort = NATNET_DEFAULT_PORT_COMMAND;
     this->connectParams.serverDataPort = NATNET_DEFAULT_PORT_DATA;
     this->connectParams.serverAddress = "192.168.209.81";
     //this->connectParams.localAddress = "192.168.0.255"; // better to leave these blank, then it autodetects, i think
-    this->connectParams.multicastAddress = "224.0.0.1";
+    this->connectParams.multicastAddress = NATNET_DEFAULT_MULTICAST_ADDRESS;
     this->connectParams.subscribedDataOnly = false; // no idea what this does
     memset(this->connectParams.BitstreamVersion, 0, sizeof(this->connectParams.BitstreamVersion)); // no idea what this is
 #endif
 
+    std::cout << std::endl << "Attempting connection to " << this->connectParams.serverAddress << "... ";
     ret = this->pClient->Connect(this->connectParams);
-    std::cout << std::endl << "Attempt connection... ";
     if (ret == ErrorCode_OK)
         std::cout<<"Successful!"<<std::endl;
     else {
@@ -295,9 +297,9 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         std::cout<<"Failed with unknown error code "<< ret <<std::endl;
 #else
         std::cout<<"Failed with error code "<< ret <<std::endl;
-        std::cout<<std::endl<<"Verify the following: " << std::endl;
-        std::cout<<"1. Connected to Motive network" << std::endl;
-        std::cout<<"2. Interface is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
+        std::cout<<std::endl<<"Troubleshooting: " << std::endl;
+        std::cout<<"1. Verify connected to Motive network" << std::endl;
+        std::cout<<"2. Verify that 'interface' is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
 #endif
         return ret;
     }
@@ -312,23 +314,23 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     void* response;
     int nBytes;
 
-    // detect frame rate
-    std::cout<<"Detecting frame rate... ";
-    ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
-    if (ret == ErrorCode_OK) {
-        this->fSample = (double) *((float*)response);
-        std::cout << this->fSample << "Hz" << std::endl;
-    } else {
-        std::cout << "Error code " << ret << std::endl;
-        return ret;
-    }
-
     // detect host clock settings for accurate time calcs
     std::cout<<"Detecting Server Configuration.. ";
     memset( &(this->serverConfig), 0, sizeof( this->serverConfig ) );
     ret = this->pClient->GetServerDescription(&(this->serverConfig));
     if (ret == ErrorCode_OK) {
         std::cout << "Done" << std::endl;
+    } else {
+        std::cout << "Error code " << ret << std::endl;
+        return ret;
+    }
+
+    // detect frame rate
+    std::cout<<"Detecting frame rate... ";
+    ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
+    if (ret == ErrorCode_OK) {
+        this->fSample = (double) *((float*)response);
+        std::cout << this->fSample << "Hz" << std::endl;
     } else {
         std::cout << "Error code " << ret << std::endl;
         return ret;
@@ -351,8 +353,8 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     }
 
     // inform user
-    std::cout << "INFO: if you see this message but you still don't receive messages, check:" << std::endl;
-    std::cout << "1. Rigid body id(s) are correct" << std::endl;
+    std::cout << std::endl << "INFO: if you see this message but you still don't receive messages, check:" << std::endl;
+    std::cout << "1. Rigid body streaming id(s) are correct" << std::endl;
     std::cout << "2. Rigid body(s) are selected in Motive" << std::endl;
     std::cout << "3. 'Multicast' is selected in 'Data Streaming Pane' in Motive" << std::endl;
 
@@ -397,9 +399,9 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         poseRB[idx] = newPose;
 
         if (this->printMessages) {
-		    printf("Rigid Body [ID=%d Error=%3.2f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
+		    printf("Rigid Body [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
 		    printf("\tx\ty\tz\tqx\tqy\tqz\tqw\n");
-		    printf("\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\n",
+		    printf("\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
 		    	data->RigidBodies[i].x,
 		    	data->RigidBodies[i].y,
 		    	data->RigidBodies[i].z,
@@ -408,7 +410,7 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 		    	data->RigidBodies[i].qz,
 		    	data->RigidBodies[i].qw);
             printf("\tvx\tvy\tvz\twx\twy\twz\n");
-		    printf("\t%4.2f\t%4.2f\t%4.2f\t%4.2f\t%4.2f\t%4.2f\n",
+		    printf("\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
                 poseDerRB[idx].x,
                 poseDerRB[idx].y,
                 poseDerRB[idx].z,

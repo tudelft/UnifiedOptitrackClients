@@ -87,26 +87,20 @@ class FilteredDifferentiator : public PureDifferentiator
             _fSample = fSample;
             _fBreakVel = fBreakVel;
             _fBreakRate = fBreakRate;
-            if (fSample <= 1e-3) {
-                _kVel = 0.;
-                _kRate = 0.;
-                std::cout << "WARNING: All lowpass filters cannot be realized and will be disabled. Check fSample." << std::endl;
-                return;
-            }
-            if (fBreakVel < 0.) {
+            if (fBreakVel < 1e-3) {
                 _kVel = 0.;
                 std::cout << "WARNING: Velocity lowpass filter cannot be realized and will be disabled. Check fBreakVel." << std::endl;
                 return;
             }
-            if (fBreakRate < 0.) {
+            if (fBreakRate < 1e-3) {
                 _kVel = 0.;
                 std::cout << "WARNING: Angular rate lowpass filter cannot be realized and will be disabled. Check fBreakRate." << std::endl;
                 return;
             }
 
             // https://en.wikipedia.org/wiki/Low-pass_filter#Simple_infinite_impulse_response_filter
-            _kVel = 1. / (1. + _fBreakVel / (2. * 3.1415 * _fSample) );
-            _kRate = 1. / (1. + _fBreakRate / (2. * 3.1415 * _fSample) );
+            _kVel = 1. / (1. + _fSample / (2. * 3.1415 * _fBreakVel) );
+            _kRate = 1. / (1. + _fSample / (2. * 3.1415 * _fBreakRate) );
         }
 
         FilteredDifferentiator() : FilteredDifferentiator(1., 1., 1.) {

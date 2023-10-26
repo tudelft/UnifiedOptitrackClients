@@ -8,7 +8,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/build/DebugImpl",
-        "args": ["-s", "124"],
+        "args": ["-s", "1018"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],
