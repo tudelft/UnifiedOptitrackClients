@@ -12,47 +12,14 @@
 #   include <unistd.h>
 #   include <termios.h>
 #endif
-
-// helper function to get character presses
-#ifndef _WIN32
-char getch()
-{
-    char buf = 0;
-    termios old = { 0 };
-
-    fflush( stdout );
-
-    if ( tcgetattr( 0, &old ) < 0 )
-        perror( "tcsetattr()" );
-
-    old.c_lflag &= ~ICANON;
-    old.c_lflag &= ~ECHO;
-    old.c_cc[VMIN] = 1;
-    old.c_cc[VTIME] = 0;
-
-    if ( tcsetattr( 0, TCSANOW, &old ) < 0 )
-        perror( "tcsetattr ICANON" );
-
-    if ( read( 0, &buf, 1 ) < 0 )
-        perror( "read()" );
-
-    old.c_lflag |= ICANON;
-    old.c_lflag |= ECHO;
-
-    if ( tcsetattr( 0, TCSADRAIN, &old ) < 0 )
-        perror( "tcsetattr ~ICANON" );
-
-    //printf( "%c\n", buf );
-
-    return buf;
-}
-#endif
+#include <inttypes.h>
 
 #include <NatNetTypes.h>
 #include <NatNetCAPI.h>
 #include <NatNetClient.h>
 #include <NatNetRequests.h>
 
+// stream operators for enums
 std::ostream& operator<<(std::ostream& lhs, ErrorCode e) {
     switch(e) {
     case ErrorCode_OK: lhs <<               "OK"; break;
@@ -102,26 +69,31 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
     this->print_startup();
     this->read_po(argc, argv);
 
-    this->pClient = new NatNetClient();
+    // process streaming ids (maybe merge into read_po)
+    for (unsigned int i : this->streaming_ids) {
+        if (this->trackRB(i) == -1) {
+            std::cout << "Cannot track Rigid Body with id " << i << ". Too many rigid bodies." << std::endl;
+        }
+    }
 
-    ErrorCode ret = this->connectAndDetectServerSettings();
-    if (ret != ErrorCode_OK) {
+    // initialize filters for derivatives (maybe merge into read_po)
+    for (int i=0; i < MAX_TRACKED_RB; i++)
+        derFilter[i] = FilteredDifferentiator(10., 10., this->fSample);
+
+    // instantiate client and make connection
+    this->pClient = new NatNetClient();
+    if (this->connectAndDetectServerSettings() != ErrorCode_OK) {
         // returning from main is best for cleanup?
         return;
     }
 
-    for (int i=0; i < MAX_TRACKED_RB; i++)
-        derFilter[i] = FilteredDifferentiator(10., 10., this->fSample);
-
-    for (unsigned int i : this->streaming_ids) {
-        int idx = this->trackRB(i);
-        if (idx == -1) {
-            std::cout << "Cannot track Rigid Body with id " << i << ". Too many rigid bodies" << std::endl;
-        }
+    // register callbacl
+    ErrorCode ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
+    if (ret != ErrorCode_OK) {
+        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
     }
 
-    this->pClient->SetFrameReceivedCallback( DataHandler, this );
-
+    // wait for keystrokes
     std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
 	while ( const int c = getch() )
     {
@@ -139,7 +111,6 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
 CyberZooMocapClient::~CyberZooMocapClient()
 {
 }
-
 
 void CyberZooMocapClient::read_po(int argc, char const *argv[])
 {
@@ -252,6 +223,59 @@ left │                          │ right
 
 ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 {
+    std::cout << std::endl;
+#ifdef USE_DISCOVERY
+#define DISCOVERY_TIMEOUT 2000
+#define MAX_DISCOVERY 10
+    sNatNetDiscoveredServer availableServers[MAX_DISCOVERY]; // just support one for now
+    int n = 1;
+    std::cout<<"Discovering NatNet servers (timeout " << DISCOVERY_TIMEOUT << "ms)... ";
+    ErrorCode ret = NatNet_BroadcastServerDiscovery(availableServers, &n, DISCOVERY_TIMEOUT);
+    if ((ret != ErrorCode_OK) || (n == 0)) {
+        if (ret != ErrorCode_OK)
+            std::cout << "Failed with Error code " << ret << std::endl;
+        else {
+            std::cout << "Failed: No servers found" << std::endl;
+            ret = ErrorCode_Network;
+        }
+
+        std::cout<<std::endl<<"Troubleshooting: " << std::endl;
+        std::cout<<"1. Verify connected to Motive network" << std::endl;
+        std::cout<<"2. Verify that 'interface' is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
+        return ret;
+    } else if (n > 0) {
+        std::cout << "Failed: more than 1 server found:" << std::endl;
+        for (int i=0; i<MAX_DISCOVERY; i++) {
+            if (i >= n) { break; }
+            std::cout << availableServers[i].serverAddress << std::endl;
+        }
+        return ErrorCode_Network;
+    } else if (!(availableServers[0].serverDescription.bConnectionInfoValid)) {
+        std::cout << "Failed: server ConnectionInfo invalid" << std::endl;
+    }
+    std::cout << "Successful!" << std::endl;
+
+    this->connectParams.connectionType\
+        = availableServers[0].serverDescription.ConnectionMulticast ? ConnectionType_Multicast : ConnectionType_Unicast;
+    this->connectParams.serverCommandPort = availableServers[0].serverCommandPort;
+    this->connectParams.serverDataPort = availableServers[0].serverDescription.ConnectionDataPort;
+    this->connectParams.serverAddress = availableServers[0].serverAddress;
+    this->connectParams.localAddress = availableServers[0].localAddress;
+
+    char mcastAddress[kNatNetIpv4AddrStrLenMax];
+#ifdef _WIN32
+    _snprintf_s(
+#else
+    snprintf(
+#endif
+        mcastAddress, sizeof mcastAddress,
+        "%" PRIu8 ".%" PRIu8".%" PRIu8".%" PRIu8"",
+        availableServers[0].serverDescription.ConnectionMulticastAddress[0],
+        availableServers[0].serverDescription.ConnectionMulticastAddress[1],
+        availableServers[0].serverDescription.ConnectionMulticastAddress[2],
+        availableServers[0].serverDescription.ConnectionMulticastAddress[3]
+    );
+#else
     this->connectParams.connectionType = ConnectionType_Multicast;
     this->connectParams.serverCommandPort = NATNET_DEFAULT_PORT_COMMAND;
     this->connectParams.serverDataPort = NATNET_DEFAULT_PORT_DATA;
@@ -260,16 +284,21 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     this->connectParams.multicastAddress = "224.0.0.1";
     this->connectParams.subscribedDataOnly = false; // no idea what this does
     memset(this->connectParams.BitstreamVersion, 0, sizeof(this->connectParams.BitstreamVersion)); // no idea what this is
+#endif
 
-    ErrorCode ret = this->pClient->Connect(this->connectParams);
-    std::cout << std::endl << "Attemption connect... ";
+    ret = this->pClient->Connect(this->connectParams);
+    std::cout << std::endl << "Attempt connection... ";
     if (ret == ErrorCode_OK)
         std::cout<<"Successful!"<<std::endl;
     else {
-        std::cout<<"Failed with error code "<<ret<<std::endl;
+#ifdef USE_DISCOVERY
+        std::cout<<"Failed with unknown error code "<< ret <<std::endl;
+#else
+        std::cout<<"Failed with error code "<< ret <<std::endl;
         std::cout<<std::endl<<"Verify the following: " << std::endl;
         std::cout<<"1. Connected to Motive network" << std::endl;
         std::cout<<"2. Interface is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
+#endif
         return ret;
     }
 
@@ -332,12 +361,13 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 
 void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 {
-
+    // get timestamp
     uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency / 1e6);
 
     if (this->printMessages)
         std::cout << "Received data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us" << std::endl;
 
+    // loop over bodies in frame and process the ones we listen to
 	for(int i=0; i < data->nRigidBodies; i++) {
         int idx = this->getIndexRB(data->RigidBodies[i].ID);
         if (idx == -1)
@@ -352,18 +382,18 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         }
 
         pose_t newPose {
-            .timeUs = timeAtExpoUs,
-            .x = data->RigidBodies[i].x,
-            .y = data->RigidBodies[i].y,
-            .z = data->RigidBodies[i].z,
-            .qx = data->RigidBodies[i].qx,
-            .qy = data->RigidBodies[i].qy,
-            .qz = data->RigidBodies[i].qz,
-            .qw = data->RigidBodies[i].qw,
+            timeAtExpoUs,
+            data->RigidBodies[i].x,
+            data->RigidBodies[i].y,
+            data->RigidBodies[i].z,
+            data->RigidBodies[i].qx,
+            data->RigidBodies[i].qy,
+            data->RigidBodies[i].qz,
+            data->RigidBodies[i].qw,
         };
 
         poseDerRB[idx] = derFilter[idx].apply(newPose);
-        poseDerRawRB[idx] = derFilter[idx].getUnfiltered();
+        //poseDerRawRB[idx] = derFilter[idx].getUnfiltered();
         poseRB[idx] = newPose;
 
         if (this->printMessages) {
@@ -391,3 +421,38 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
     return;
 }
 
+
+// helper function to get character presses
+#ifndef _WIN32
+char getch()
+{
+    char buf = 0;
+    termios old = { 0, 0, 0, 0, 0, "\0", 0, 0 };
+
+    fflush( stdout );
+
+    if ( tcgetattr( 0, &old ) < 0 )
+        perror( "tcsetattr()" );
+
+    old.c_lflag &= ~ICANON;
+    old.c_lflag &= ~ECHO;
+    old.c_cc[VMIN] = 1;
+    old.c_cc[VTIME] = 0;
+
+    if ( tcsetattr( 0, TCSANOW, &old ) < 0 )
+        perror( "tcsetattr ICANON" );
+
+    if ( read( 0, &buf, 1 ) < 0 )
+        perror( "read()" );
+
+    old.c_lflag |= ICANON;
+    old.c_lflag |= ECHO;
+
+    if ( tcsetattr( 0, TCSADRAIN, &old ) < 0 )
+        perror( "tcsetattr ~ICANON" );
+
+    //printf( "%c\n", buf );
+
+    return buf;
+}
+#endif

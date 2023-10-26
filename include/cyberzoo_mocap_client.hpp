@@ -8,6 +8,10 @@
 
 #include <iostream>
 
+#ifndef _WIN32
+char getch();
+#endif
+
 #define MAX_TRACKED_RB 10
 
 
@@ -25,13 +29,13 @@ private:
     UpAxis upAxis;
 
     // container for tracking the rigid bodies
+    bool printMessages;
     uint8_t nTrackedRB;
     int trackedRB[MAX_TRACKED_RB];
     bool validRB[MAX_TRACKED_RB];
     pose_t poseRB[MAX_TRACKED_RB];
     pose_der_t poseDerRB[MAX_TRACKED_RB];
     pose_der_t poseDerRawRB[MAX_TRACKED_RB];
-    bool printMessages;
     double fSample;
     sServerDescription serverConfig;
 
@@ -68,7 +72,7 @@ public:
     bool untrackRB(int id) {
         int i = this->getIndexRB(id);
         if (i == -1) { return true; } // already not tracked
-        else { this->trackedRB[i] == -1; }
+        else { this->trackedRB[i] = -1; }
         this->nTrackedRB--;
         return true;
     };

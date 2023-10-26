@@ -5,7 +5,6 @@ cmake_minimum_required(VERSION 3.5)
 project(optitrack_clients LANGUAGES CXX)
 set (CMAKE_CXX_STANDARD 11)
 
-
 include(FetchContent)
 fetchcontent_declare(natnet_sdk_content
   URL https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.0_ubuntu.tar
@@ -23,3 +22,11 @@ find_package(Boost REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 target_link_libraries(DebugImpl ${Boost_LIBRARIES})
 target_link_libraries(DebugImpl natnet_sdk)
+
+
+add_definitions(-DUSE_DISCOVERY)
+if(MSVC)
+  target_compile_options(DebugImpl PRIVATE /W4 /WX)
+else()
+  target_compile_options(DebugImpl PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
