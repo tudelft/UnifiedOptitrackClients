@@ -92,7 +92,8 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
 };
 
 CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
-    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}
+    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    nTrackedRB{0}, validRB{false}
 {
 
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -109,12 +110,19 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
         return;
     }
 
+    for (int i=0; i < MAX_TRACKED_RB; i++)
+        derFilter[i] = FilteredDifferentiator(10., 10., this->fSample);
+
+    for (unsigned int i : this->streaming_ids) {
+        int idx = this->trackRB(i);
+        if (idx == -1) {
+            std::cout << "Cannot track Rigid Body with id " << i << ". Too many rigid bodies" << std::endl;
+        }
+    }
+
     this->pClient->SetFrameReceivedCallback( DataHandler, this );
 
-    for (int i; i < MAX_TRACKED_RB; i++)
-        derFilter[i] = FilteredDifferentiator(5., 5., this->fSample);
-
-    std::cout << std::endl << "Setup complete! Press q to quit, Press t to toggle message printing" << std::endl;
+    std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
 	while ( const int c = getch() )
     {
         switch(c)
@@ -123,7 +131,7 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
                 return;
             case 't':
                 this->printMessages ^= true; // toggle
-                return;
+                break;
         }
     }
 }
@@ -259,8 +267,9 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         std::cout<<"Successful!"<<std::endl;
     else {
         std::cout<<"Failed with error code "<<ret<<std::endl;
-        std::cout<<std::endl<<"Check 'Streaming Pane' settings. Interface must\
-            NOT be 'local'. Type must be 'Multicast'."<<std::endl;
+        std::cout<<std::endl<<"Verify the following: " << std::endl;
+        std::cout<<"1. Connected to Motive network" << std::endl;
+        std::cout<<"2. Interface is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
         return ret;
     }
 
@@ -278,8 +287,19 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     std::cout<<"Detecting frame rate... ";
     ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
     if (ret == ErrorCode_OK) {
-        this->fSample = *((double*)response);
+        this->fSample = (double) *((float*)response);
         std::cout << this->fSample << "Hz" << std::endl;
+    } else {
+        std::cout << "Error code " << ret << std::endl;
+        return ret;
+    }
+
+    // detect host clock settings for accurate time calcs
+    std::cout<<"Detecting Server Configuration.. ";
+    memset( &(this->serverConfig), 0, sizeof( this->serverConfig ) );
+    ret = this->pClient->GetServerDescription(&(this->serverConfig));
+    if (ret == ErrorCode_OK) {
+        std::cout << "Done" << std::endl;
     } else {
         std::cout << "Error code " << ret << std::endl;
         return ret;
@@ -312,8 +332,11 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 
 void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 {
+
+    uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency / 1e6);
+
     if (this->printMessages)
-        std::cout << "Time " << data->CameraMidExposureTimestamp << std::endl;
+        std::cout << "Received data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us" << std::endl;
 
 	for(int i=0; i < data->nRigidBodies; i++) {
         int idx = this->getIndexRB(data->RigidBodies[i].ID);
@@ -329,7 +352,7 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         }
 
         pose_t newPose {
-            .time = data->CameraMidExposureTimestamp,
+            .timeUs = timeAtExpoUs,
             .x = data->RigidBodies[i].x,
             .y = data->RigidBodies[i].y,
             .z = data->RigidBodies[i].z,
@@ -344,7 +367,7 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         poseRB[idx] = newPose;
 
         if (this->printMessages) {
-		    printf("Rigid Body [ID=%d  Error=%3.2f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
+		    printf("Rigid Body [ID=%d Error=%3.2f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
 		    printf("\tx\ty\tz\tqx\tqy\tqz\tqw\n");
 		    printf("\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\n",
 		    	data->RigidBodies[i].x,
@@ -354,9 +377,8 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 		    	data->RigidBodies[i].qy,
 		    	data->RigidBodies[i].qz,
 		    	data->RigidBodies[i].qw);
-            printf("Filtered Derivatives");
             printf("\tvx\tvy\tvz\twx\twy\twz\n");
-		    printf("\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\n",
+		    printf("\t%4.2f\t%4.2f\t%4.2f\t%4.2f\t%4.2f\t%4.2f\n",
                 poseDerRB[idx].x,
                 poseDerRB[idx].y,
                 poseDerRB[idx].z,

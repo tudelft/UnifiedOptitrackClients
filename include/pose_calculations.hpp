@@ -4,7 +4,7 @@
 #include <iostream>
 
 typedef struct pose_s {
-    uint64_t time;
+    uint64_t timeUs;
     float x;
     float y;
     float z;
@@ -15,7 +15,7 @@ typedef struct pose_s {
 } pose_t;
 
 typedef struct pose_der_s {
-    uint64_t time;
+    uint64_t timeUs;
     float x;
     float y;
     float z;
@@ -43,18 +43,18 @@ class PureDifferentiator
 
     protected:
         void newSample(pose_t newPose) {
-            double delta = newPose.time - _pose.time;
+            int64_t delta = newPose.timeUs - _pose.timeUs; // does this deal with overflows?
 
-            if ((delta <= 1e-3) || (_pose.time == 0)) {
-                // likely uninitialized
+            if ((delta < 100) || (delta > 2e6) || (_pose.timeUs == 0)) {
+                // likely uninitialized, or very old data
                 _pose = newPose;
                 _valid = false;
                 return;
             }
             _valid = true;
 
-            double iDelta = 1./delta;
-            _unfiltered.time = newPose.time;
+            double iDelta = 1 / (static_cast<double>(delta) / 1e6f);
+            _unfiltered.timeUs = newPose.timeUs;
             _unfiltered.x = iDelta * (newPose.x - _pose.x);
             _unfiltered.y = iDelta * (newPose.y - _pose.y);
             _unfiltered.z = iDelta * (newPose.z - _pose.z);

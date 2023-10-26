@@ -33,6 +33,7 @@ private:
     pose_der_t poseDerRawRB[MAX_TRACKED_RB];
     bool printMessages;
     double fSample;
+    sServerDescription serverConfig;
 
     FilteredDifferentiator derFilter[MAX_TRACKED_RB];
 
@@ -51,7 +52,7 @@ public:
     ~CyberZooMocapClient();
     void natnet_data_handler(sFrameOfMocapData* data);
     int getIndexRB(int id) { 
-        for (int i; i < this->nTrackedRB; i++) {
+        for (int i=0; i < this->nTrackedRB; i++) {
             if (this->trackedRB[i] == id)
                 return i;
         }
