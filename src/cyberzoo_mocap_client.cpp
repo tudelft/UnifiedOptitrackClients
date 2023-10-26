@@ -4,6 +4,49 @@
 #include <string>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
+#include <functional>
+
+#ifdef _WIN32
+#   include <conio.h>
+#else
+#   include <unistd.h>
+#   include <termios.h>
+#endif
+
+// helper function to get character presses
+#ifndef _WIN32
+char getch()
+{
+    char buf = 0;
+    termios old = { 0 };
+
+    fflush( stdout );
+
+    if ( tcgetattr( 0, &old ) < 0 )
+        perror( "tcsetattr()" );
+
+    old.c_lflag &= ~ICANON;
+    old.c_lflag &= ~ECHO;
+    old.c_cc[VMIN] = 1;
+    old.c_cc[VTIME] = 0;
+
+    if ( tcsetattr( 0, TCSANOW, &old ) < 0 )
+        perror( "tcsetattr ICANON" );
+
+    if ( read( 0, &buf, 1 ) < 0 )
+        perror( "read()" );
+
+    old.c_lflag |= ICANON;
+    old.c_lflag |= ECHO;
+
+    if ( tcsetattr( 0, TCSADRAIN, &old ) < 0 )
+        perror( "tcsetattr ~ICANON" );
+
+    //printf( "%c\n", buf );
+
+    return buf;
+}
+#endif
 
 #include <NatNetTypes.h>
 #include <NatNetCAPI.h>
@@ -43,22 +86,46 @@ std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
     return lhs;
 }
 
+void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
+    CyberZooMocapClient* that = (CyberZooMocapClient*) pUserData;
+    that->natnet_data_handler(data);
+};
+
 CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
     : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}
 {
+
+    // TODO: use builtin forward prediction with the latency estimates plus a 
+    // user-defined interval (on the order of 10ms)?
+
     this->print_startup();
     this->read_po(argc, argv);
 
     this->pClient = new NatNetClient();
 
-    ErrorCode ret = this->attempt_server_connect();
+    ErrorCode ret = this->connectAndDetectServerSettings();
     if (ret != ErrorCode_OK) {
         // returning from main is best for cleanup?
         return;
     }
 
-    //this->pClient->SetFrameReceivedCallback( &(this->natnet_data_handler), this->pClient )
+    this->pClient->SetFrameReceivedCallback( DataHandler, this );
 
+    for (int i; i < MAX_TRACKED_RB; i++)
+        derFilter[i] = FilteredDifferentiator(5., 5., this->fSample);
+
+    std::cout << std::endl << "Setup complete! Press q to quit, Press t to toggle message printing" << std::endl;
+	while ( const int c = getch() )
+    {
+        switch(c)
+        {
+            case 'q':
+                return;
+            case 't':
+                this->printMessages ^= true; // toggle
+                return;
+        }
+    }
 }
 
 CyberZooMocapClient::~CyberZooMocapClient()
@@ -175,14 +242,14 @@ left │                          │ right
     )" << '\n';
 }
 
-ErrorCode CyberZooMocapClient::attempt_server_connect()
+ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 {
     this->connectParams.connectionType = ConnectionType_Multicast;
     this->connectParams.serverCommandPort = NATNET_DEFAULT_PORT_COMMAND;
     this->connectParams.serverDataPort = NATNET_DEFAULT_PORT_DATA;
-    this->connectParams.serverAddress = "192.168.0.153";
+    this->connectParams.serverAddress = "192.168.209.81";
     //this->connectParams.localAddress = "192.168.0.255"; // better to leave these blank, then it autodetects, i think
-    //this->connectParams.multicastAddress = "224.0.0.1";
+    this->connectParams.multicastAddress = "224.0.0.1";
     this->connectParams.subscribedDataOnly = false; // no idea what this does
     memset(this->connectParams.BitstreamVersion, 0, sizeof(this->connectParams.BitstreamVersion)); // no idea what this is
 
@@ -192,26 +259,113 @@ ErrorCode CyberZooMocapClient::attempt_server_connect()
         std::cout<<"Successful!"<<std::endl;
     else {
         std::cout<<"Failed with error code "<<ret<<std::endl;
+        std::cout<<std::endl<<"Check 'Streaming Pane' settings. Interface must\
+            NOT be 'local'. Type must be 'Multicast'."<<std::endl;
         return ret;
     }
 
-    // detect up axis
+    // check for version >2
+    bool verAtLeast2 = true;
+    bool forceVerAtLeast2 = false;
+    if (!verAtLeast2 && forceVerAtLeast2) {
+        return ErrorCode_Other;
+    }
+
     void* response;
     int nBytes;
-    std::cout<<"Detecting up axis... ";
-    ret = this->pClient->SendMessageAndWait("GetProperty,,Up Axis", &response, &nBytes);
-	if (ret == ErrorCode_OK) {
-        this->upAxis = static_cast<UpAxis>( ((char*)response)[0] - '0' );
-        std::cout << this->upAxis << std::endl;
-	} else {
+
+    // detect frame rate
+    std::cout<<"Detecting frame rate... ";
+    ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
+    if (ret == ErrorCode_OK) {
+        this->fSample = *((double*)response);
+        std::cout << this->fSample << "Hz" << std::endl;
+    } else {
         std::cout << "Error code " << ret << std::endl;
         return ret;
     }
 
+    // detect up axis
+    if (verAtLeast2) {
+        std::cout<<"Detecting up axis... ";
+        ret = this->pClient->SendMessageAndWait("GetProperty,,Up Axis", &response, &nBytes);
+        if (ret == ErrorCode_OK) {
+            this->upAxis = static_cast<UpAxis>( ((char*)response)[0] - '0' );
+            std::cout << this->upAxis << std::endl;
+        } else {
+            std::cout << "Error code " << ret << std::endl;
+            return ret;
+        }
+    } else {
+        this->upAxis = UpAxis::Y;
+        std::cout << "WARNING: Motive version less than 2. Assuming y_up is set." << std::endl;
+    }
+
+    // inform user
+    std::cout << "INFO: if you see this message but you still don't receive messages, check:" << std::endl;
+    std::cout << "1. Rigid body id(s) are correct" << std::endl;
+    std::cout << "2. Rigid body(s) are selected in Motive" << std::endl;
+    std::cout << "3. 'Multicast' is selected in 'Data Streaming Pane' in Motive" << std::endl;
+
     return ErrorCode_OK;
 }
 
-void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data, void* pUserData) const
+void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 {
+    if (this->printMessages)
+        std::cout << "Time " << data->CameraMidExposureTimestamp << std::endl;
+
+	for(int i=0; i < data->nRigidBodies; i++) {
+        int idx = this->getIndexRB(data->RigidBodies[i].ID);
+        if (idx == -1)
+            continue; // untracked by us
+
+        bool bTrackingValid = data->RigidBodies[i].params & 0x01;
+        if (bTrackingValid) {
+            validRB[idx] = true;
+        } else {
+            validRB[idx] = false;
+            continue;
+        }
+
+        pose_t newPose {
+            .time = data->CameraMidExposureTimestamp,
+            .x = data->RigidBodies[i].x,
+            .y = data->RigidBodies[i].y,
+            .z = data->RigidBodies[i].z,
+            .qx = data->RigidBodies[i].qx,
+            .qy = data->RigidBodies[i].qy,
+            .qz = data->RigidBodies[i].qz,
+            .qw = data->RigidBodies[i].qw,
+        };
+
+        poseDerRB[idx] = derFilter[idx].apply(newPose);
+        poseDerRawRB[idx] = derFilter[idx].getUnfiltered();
+        poseRB[idx] = newPose;
+
+        if (this->printMessages) {
+		    printf("Rigid Body [ID=%d  Error=%3.2f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
+		    printf("\tx\ty\tz\tqx\tqy\tqz\tqw\n");
+		    printf("\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\n",
+		    	data->RigidBodies[i].x,
+		    	data->RigidBodies[i].y,
+		    	data->RigidBodies[i].z,
+		    	data->RigidBodies[i].qx,
+		    	data->RigidBodies[i].qy,
+		    	data->RigidBodies[i].qz,
+		    	data->RigidBodies[i].qw);
+            printf("Filtered Derivatives");
+            printf("\tvx\tvy\tvz\twx\twy\twz\n");
+		    printf("\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\t%3.2f\n",
+                poseDerRB[idx].x,
+                poseDerRB[idx].y,
+                poseDerRB[idx].z,
+                poseDerRB[idx].wx,
+                poseDerRB[idx].wy,
+                poseDerRB[idx].wz);
+        }
+    }
+
     return;
 }
+
