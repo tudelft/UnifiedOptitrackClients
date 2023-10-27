@@ -47,6 +47,7 @@ private:
     void print_coordinate_system() const;
     ErrorCode connectAndDetectServerSettings();
 
+    bool _initialized;
 
 protected:
    
@@ -54,7 +55,9 @@ protected:
 public:
     CyberZooMocapClient(int argc, char const *argv[]);
     ~CyberZooMocapClient();
+    bool isInitialized() { return _initialized; };
     void natnet_data_handler(sFrameOfMocapData* data);
+    void togglePrintMessages() { printMessages ^= true; };
     int getIndexRB(int id) { 
         for (int i=0; i < this->nTrackedRB; i++) {
             if (this->trackedRB[i] == id)
@@ -76,18 +79,23 @@ public:
         this->nTrackedRB--;
         return true;
     };
-    bool setPoseRB(int id, pose_t pose) {
+    bool getPoseRB(int id, pose_t* pose) {
         int i = this->getIndexRB(id);
         if (i == -1) { return false; } // not tracked; abort
-        memcpy(&(this->poseRB[i]), &pose, sizeof(pose_t));
+        memcpy(pose, &(this->poseRB[i]), sizeof(pose_t));
         return true;
     };
-    bool setPoseDerRB(int id, pose_der_t poseDer) {
+    bool getPoseDerRB(int id, pose_der_t* poseDer) {
         int i = this->getIndexRB(id);
         if (i == -1) { return false; } // not tracked; abort
-        memcpy(&(this->poseDerRB[i]), &poseDer, sizeof(pose_der_t));
+        memcpy(poseDer, &(this->poseDerRB[i]), sizeof(pose_der_t));
         return true;
     };
+    bool isValidRB(int id) {
+        int i = this->getIndexRB(id);
+        if (i == -1) { return false; } // not tracked; abort
+        return validRB[i];
+    }
 };
 
 

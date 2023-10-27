@@ -60,7 +60,7 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
 
 CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
     : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
-    nTrackedRB{0}, validRB{false}
+    nTrackedRB{0}, validRB{false}, _initialized{false}
 {
 
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -78,7 +78,8 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
 
     // instantiate client and make connection
     this->pClient = new NatNetClient();
-    if (this->connectAndDetectServerSettings() != ErrorCode_OK) {
+    ErrorCode ret = this->connectAndDetectServerSettings();
+    if (ret != ErrorCode_OK) {
         // returning from main is best for cleanup?
         return;
     }
@@ -88,24 +89,13 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
         derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
 
     // register callbacl
-    ErrorCode ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
+    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
     if (ret != ErrorCode_OK) {
         std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
+        return;
     }
 
-    // wait for keystrokes
-    std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
-	while ( const int c = getch() )
-    {
-        switch(c)
-        {
-            case 'q':
-                return;
-            case 't':
-                this->printMessages ^= true; // toggle
-                break;
-        }
-    }
+    _initialized = true;
 }
 
 CyberZooMocapClient::~CyberZooMocapClient()
@@ -223,14 +213,15 @@ left │                          │ right
 
 ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 {
-    std::cout << std::endl;
     ErrorCode ret;
+
 #ifdef USE_DISCOVERY
 #define DISCOVERY_TIMEOUT 1000
 #define MAX_DISCOVERY 10
-    sNatNetDiscoveredServer availableServers[MAX_DISCOVERY]; // just support one for now
+    std::cout<<std::endl<<"Discovering NatNet servers (timeout " << DISCOVERY_TIMEOUT << "ms)... ";
+
     int n = 1;
-    std::cout<<"Discovering NatNet servers (timeout " << DISCOVERY_TIMEOUT << "ms)... ";
+    sNatNetDiscoveredServer availableServers[MAX_DISCOVERY]; // just support one for now
     ret = NatNet_BroadcastServerDiscovery(availableServers, &n, DISCOVERY_TIMEOUT);
     if ((ret != ErrorCode_OK) || (n == 0)) {
         if (ret != ErrorCode_OK)
@@ -244,6 +235,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         std::cout<<"1. Verify connected to Motive network" << std::endl;
         std::cout<<"2. Verify that 'interface' is NOT set to 'loopback' in Motive 'Data Streaming Pane'" << std::endl;
         return ret;
+
     } else if (n > 1) {
         std::cout << "Failed: more than 1 server found:" << std::endl;
         for (int i=0; i<MAX_DISCOVERY; i++) {
@@ -251,9 +243,11 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
             std::cout << availableServers[i].serverAddress << std::endl;
         }
         return ErrorCode_Network;
+
     } else if (!(availableServers[0].serverDescription.bConnectionInfoValid)) {
         std::cout << "Failed: server ConnectionInfo invalid" << std::endl;
     }
+
     std::cout << "Successful!" << std::endl;
 
     this->connectParams.connectionType\
@@ -277,6 +271,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         availableServers[0].serverDescription.ConnectionMulticastAddress[3]
     );
     this->connectParams.multicastAddress = mcastAddress;
+
 #else
     this->connectParams.connectionType = ConnectionType_Multicast;
     this->connectParams.serverCommandPort = NATNET_DEFAULT_PORT_COMMAND;
@@ -290,9 +285,9 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 
     std::cout << std::endl << "Attempting connection to " << this->connectParams.serverAddress << "... ";
     ret = this->pClient->Connect(this->connectParams);
-    if (ret == ErrorCode_OK)
+    if (ret == ErrorCode_OK) {
         std::cout<<"Successful!"<<std::endl;
-    else {
+    } else {
 #ifdef USE_DISCOVERY
         std::cout<<"Failed with unknown error code "<< ret <<std::endl;
 #else
@@ -304,7 +299,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         return ret;
     }
 
-    // check for version >2
+    // TODO: properly check for version >2
     bool verAtLeast2 = true;
     bool forceVerAtLeast2 = false;
     if (!verAtLeast2 && forceVerAtLeast2) {
