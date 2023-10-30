@@ -19,13 +19,14 @@ public:
         while (true) {
             usleep((unsigned int) (1000000.f / _freq)); // replace this by a scheduled thread somehow?
             // TODO: mutex lock
+            unsigned int id = 126;
 
-            if (!isValidRB(125)) { continue; }
+            if (!isValidRB(id)) { continue; }
 
             pose_t pose;
             pose_der_t poseDer;
-            getPoseRB(125, &pose); // should not need to check return flags
-            getPoseDerRB(125, &poseDer);
+            getPoseRB(id, &pose); // should not need to check return flags
+            getPoseDerRB(id, &poseDer);
             IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
                 _ac_id, pose.timeUs/1000,  //todo: probably not the right timestamp
                 pose.x, pose.y, pose.z,
@@ -46,6 +47,12 @@ void *runPublisher(void* ptr) {
     return NULL;
 }
 
+void *keyListener(void* ptr) {
+    NatNet2Ivy* that = (NatNet2Ivy *) ptr;
+    that->listenToKeystrokes();
+    return NULL;
+}
+
 int main(int argc, char const *argv[])
 {
     uint8_t ac_id = 2;
@@ -59,6 +66,9 @@ int main(int argc, char const *argv[])
 
     pthread_t pub;
     pthread_create( &pub, NULL, runPublisher, (void*) &client);
+
+    pthread_t keys;
+    pthread_create( &keys, NULL, keyListener, (void*) &client);
 
     IvyMainLoop();
 

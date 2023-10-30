@@ -7,6 +7,7 @@
 #include "pose_calculations.hpp"
 
 #include <iostream>
+#include <csignal>
 
 #ifndef _WIN32
 char getch();
@@ -95,7 +96,24 @@ public:
         int i = this->getIndexRB(id);
         if (i == -1) { return false; } // not tracked; abort
         return validRB[i];
-    }
+    };
+    void listenToKeystrokes(void)
+    {
+        // wait for keystrokes
+        std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+    	while ( const int c = getch() )
+        {
+            switch(c)
+            {
+                case 'q':
+                    std::raise(SIGTERM);
+                    break;
+                case 't':
+                    this->togglePrintMessages();
+                    break;
+            }
+        }
+    };
 };
 
 
