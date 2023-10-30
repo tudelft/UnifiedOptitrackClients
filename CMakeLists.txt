@@ -36,7 +36,7 @@ target_link_libraries(DebugImpl natnet_sdk)
 
 add_definitions(-DDOWNLINK)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/ext/pprzlink/var/include)
-add_executable(NatNet2Ivy src/cyberzoo_mocap_client.cpp ext/pprzlink/var/share/pprzlink/src/ivy_transport.c src/ivy.cpp)
+add_executable(NatNet2Ivy src/cyberzoo_mocap_client.cpp src/ivy.cpp)
 target_link_libraries(NatNet2Ivy ${Boost_LIBRARIES})
 target_link_libraries(NatNet2Ivy natnet_sdk)
 target_link_libraries(NatNet2Ivy ivy)

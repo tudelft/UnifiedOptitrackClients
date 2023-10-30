@@ -20,12 +20,12 @@ public:
             usleep((unsigned int) (1000000.f / _freq)); // replace this by a scheduled thread somehow?
             // TODO: mutex lock
 
-            if (!isValidRB(1)) { continue; }
+            if (!isValidRB(125)) { continue; }
 
             pose_t pose;
             pose_der_t poseDer;
-            getPoseRB(1, &pose); // should not need to check return flags
-            getPoseDerRB(1, &poseDer);
+            getPoseRB(125, &pose); // should not need to check return flags
+            getPoseDerRB(125, &poseDer);
             IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
                 _ac_id, pose.timeUs/1000,  //todo: probably not the right timestamp
                 pose.x, pose.y, pose.z,

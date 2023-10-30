@@ -8,7 +8,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/build/NatNet2Ivy",
-        "args": ["-s", "1018"],
+        "args": ["-s", "125"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],
