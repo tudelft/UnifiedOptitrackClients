@@ -2,6 +2,7 @@
 #define H_POSE_CALCULATIONS
 
 #include <iostream>
+#include <cmath>
 
 typedef struct pose_s {
     uint64_t timeUs;
@@ -53,7 +54,7 @@ class PureDifferentiator
             }
             _valid = true;
 
-            double iDelta = 1 / (static_cast<double>(delta) / 1e6f);
+            double iDelta = 1.0 / (static_cast<double>(delta) * 1e-6f);
             _unfiltered.timeUs = newPose.timeUs;
             _unfiltered.x = iDelta * (newPose.x - _pose.x);
             _unfiltered.y = iDelta * (newPose.y - _pose.y);
@@ -99,8 +100,8 @@ class FilteredDifferentiator : public PureDifferentiator
             }
 
             // https://en.wikipedia.org/wiki/Low-pass_filter#Simple_infinite_impulse_response_filter
-            _kVel = 1. / (1. + _fSample / (2. * 3.1415 * _fBreakVel) );
-            _kRate = 1. / (1. + _fSample / (2. * 3.1415 * _fBreakRate) );
+            _kVel = 1. / (1. + _fSample / (2. * M_PI * _fBreakVel) );
+            _kRate = 1. / (1. + _fSample / (2. * M_PI * _fBreakRate) );
         }
 
         FilteredDifferentiator() : FilteredDifferentiator(1., 1., 1.) {
