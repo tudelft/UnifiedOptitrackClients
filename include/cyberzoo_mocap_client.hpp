@@ -105,10 +105,10 @@ protected:
         return pose_der;
     };
 
-    /* Pure Virtual Function to be implemented by base classes */
+    /* Virtual Function to be implemented by base classes */
     // Extra Program Options
-    virtual void add_extra_po(boost::program_options::options_description &desc) = 0;
-    virtual void parse_extra_po(const boost::program_options::variables_map &vm) = 0;
+    virtual void add_extra_po(boost::program_options::options_description &desc);
+    virtual void parse_extra_po(const boost::program_options::variables_map &vm);
 
 public:
     CyberZooMocapClient();

@@ -93,6 +93,17 @@ CyberZooMocapClient::~CyberZooMocapClient()
 {
 }
 
+// Non-action implementation of the virtual function to make the implementation optional
+void CyberZooMocapClient::add_extra_po(boost::program_options::options_description &desc)
+{
+    (void)desc;
+}
+
+// Non-action implementation of the virtual function to make the implementation optional
+void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables_map &vm)
+{
+    (void)vm;
+}
 void CyberZooMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
