@@ -23,7 +23,7 @@ enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
 class CyberZooMocapClient 
 {
 private:
-    float publish_frequency;
+    float publish_dt;
     std::vector<unsigned int> streaming_ids;
     CoordinateSystem co;
     NatNetClient* pClient;
@@ -58,57 +58,58 @@ protected:
         this->trackedRB[this->nTrackedRB] = id;
         return this->nTrackedRB++;
     };
-    bool untrackRB(unsigned int id) {
-        int i = this->getIndexRB(id);
-        if (i == -1) { return true; } // already not tracked
-        else { this->trackedRB[i] = -1; }
-        this->nTrackedRB--;
-        return true;
-    };
 
+    int8_t getNTrackedRB(){
+        return this->nTrackedRB;
+    }
+    int getIdRB(unsigned int idx)
+    {
+        return this->trackedRB[idx];
+    }
+    bool getValidRB(unsigned int idx)
+    {
+        return this->validRB[idx];
+    }
     /* Thread safe mutators and accessors for the current pose 
      * and pose derivative values. */
-    bool setPoseRB(unsigned int id, pose_t pose) {
-        int i = this->getIndexRB(id);
-        if (i == -1) { return false; } // not tracked; abort
+    bool setPoseRB(unsigned int idx, pose_t pose) {
         // Lock respective mutex
-        this->poseMutexes[i].lock();
-        memcpy(&(this->poseRB[i]), &pose, sizeof(pose_t));
-        this->poseMutexes[i].unlock();
+        this->poseMutexes[idx].lock();
+        memcpy(&(this->poseRB[idx]), &pose, sizeof(pose_t));
+        this->poseMutexes[idx].unlock();
         return true;
     };
-    pose_t getPoseRB(unsigned int id){
-        int i = this->getIndexRB(id);
-        if (i == -1) { return pose_t(); } // not tracked; return empty pose;
+    pose_t getPoseRB(unsigned int idx){
         // Lock respective mutex
-        this->poseMutexes[i].lock();
-        pose_t pose = this->poseRB[i];
-        this->poseMutexes[i].unlock();
+        this->poseMutexes[idx].lock();
+        pose_t pose(this->poseRB[idx]);
+        this->poseMutexes[idx].unlock();
         return pose;
     };
-    bool setPoseDerRB(int id, pose_der_t poseDer) {
-        int i = this->getIndexRB(id);
-        if (i == -1) { return false; } // not tracked; abort
+    bool setPoseDerRB(int idx, pose_der_t poseDer) {
         // Lock respective mutex
-        this->poseDerMutexes[i].lock();
-        memcpy(&(this->poseDerRB[i]), &poseDer, sizeof(pose_der_t));
-        this->poseDerMutexes[i].unlock();
+        this->poseDerMutexes[idx].lock();
+        memcpy(&(this->poseDerRB[idx]), &poseDer, sizeof(pose_der_t));
+        this->poseDerMutexes[idx].unlock();
         return true;
     };
-    pose_der_t getPoseDerRB(unsigned int id){
-        int i = this->getIndexRB(id);
-        if (i == -1) { return pose_der_t(); } // not tracked; return empty pose;
+    pose_der_t getPoseDerRB(unsigned int idx){
         // Lock respective mutex
-        this->poseDerMutexes[i].lock();
-        pose_der_t pose_der = this->poseDerRB[i];
-        this->poseMutexes[i].unlock();
+        this->poseDerMutexes[idx].lock();
+        pose_der_t pose_der(this->poseDerRB[idx]);
+        this->poseDerMutexes[idx].unlock();
         return pose_der;
     };
 
+    /* Function that is used to spin up the publish thread */
+    void publish_loop();
     /* Virtual Function to be implemented by base classes */
     // Extra Program Options
     virtual void add_extra_po(boost::program_options::options_description &desc);
     virtual void parse_extra_po(const boost::program_options::variables_map &vm);
+    // Publishing functions
+    virtual void publish_data() = 0;
+    
 
 public:
     CyberZooMocapClient();
