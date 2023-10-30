@@ -3,7 +3,7 @@ add_compile_definitions(RCLCPP_LOG_MIN_SEVERITY=RCLCPP_LOG_MIN_SEVERITY_DEBUG)
 
 cmake_minimum_required(VERSION 3.5)
 project(optitrack_clients LANGUAGES CXX)
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 14)
 
 include(FetchContent)
 fetchcontent_declare(natnet_sdk_content
