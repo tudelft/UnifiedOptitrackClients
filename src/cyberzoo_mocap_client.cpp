@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <thread>
 #include <boost/algorithm/string.hpp>
 #include <functional>
 
@@ -65,7 +66,7 @@ CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
 }
 
 CyberZooMocapClient::CyberZooMocapClient()
-    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, validRB{false}
 {
 
@@ -73,6 +74,14 @@ CyberZooMocapClient::CyberZooMocapClient()
     // user-defined interval (on the order of 10ms)?
 
     this->print_startup();
+
+    // Initialize non-trivial arrays
+    for(unsigned int i = 0; i < MAX_TRACKED_RB; i++)
+    {
+        this->validRB[i] = false;
+        this->poseRB[i] = pose_t();
+        this->poseDerRB[i] = pose_der_t(); 
+    }
 
     // instantiate client and make connection
     this->pClient = new NatNetClient();
@@ -104,6 +113,18 @@ void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables
 {
     (void)vm;
 }
+
+void CyberZooMocapClient::publish_loop()
+{
+    bool run = true;
+    while(run)
+    {
+        this->publish_data();
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(this->publish_dt * 1s);
+    }
+
+}
 void CyberZooMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
@@ -112,20 +133,8 @@ void CyberZooMocapClient::start(int argc, const char *argv[])
     for (unsigned int i=0; i < MAX_TRACKED_RB; i++)
         derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
 
-
-    // wait for keystrokes
-    std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
-	while ( const int c = getch() )
-    {
-        switch(c)
-        {
-            case 'q':
-                return;
-            case 't':
-                this->printMessages ^= true; // toggle
-                break;
-        }
-    }
+    std::thread pub(&CyberZooMocapClient::publish_loop, this);
+    pub.join();
 }
 
 void CyberZooMocapClient::read_po(int argc, char const *argv[])
@@ -152,12 +161,12 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     }
 
     if (vm.count("publish_frequency")) {
-        this->publish_frequency = vm["publish_frequency"].as<float>();
+        this->publish_dt = 1.0 / vm["publish_frequency"].as<float>();
         std::cout << "Publish frequency was set to " 
-                  << this->publish_frequency << std::endl;
+                  << 1.0 / this->publish_dt << std::endl;
     } else {
         std::cout << "Publish frequency not set, defaulting to " 
-                  << this->publish_frequency
+                  << 1.0 / this->publish_dt
                   << " Hz" << std::endl;   
     }
 
