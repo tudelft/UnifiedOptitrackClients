@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <mutex>
+#include <boost/program_options.hpp>
 #include "NatNetClient.h"
 #include "NatNetTypes.h"
 #include "pose_calculations.hpp"
@@ -104,11 +105,21 @@ protected:
         return pose_der;
     };
 
+    /* Pure Virtual Function to be implemented by base classes */
+    // Extra Program Options
+    virtual void add_extra_po(boost::program_options::options_description &desc) = 0;
+    virtual void parse_extra_po(const boost::program_options::variables_map &vm) = 0;
+
 public:
-    CyberZooMocapClient(int argc, char const *argv[]);
+    CyberZooMocapClient();
     CyberZooMocapClient(const CyberZooMocapClient &other);
     ~CyberZooMocapClient();
     void natnet_data_handler(sFrameOfMocapData* data);
+
+    /* Function that needs to be called after creating
+     * the client to start everything */
+    void start(int argc, char const *argv[]);
+
     int getIndexRB(int id) { 
         for (unsigned int i=0; i < this->nTrackedRB; i++) {
             if (this->trackedRB[i] == id)

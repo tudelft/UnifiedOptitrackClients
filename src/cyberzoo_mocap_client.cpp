@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <string>
-#include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <functional>
 
@@ -65,7 +64,7 @@ CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
     exit(-1);
 }
 
-CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
+CyberZooMocapClient::CyberZooMocapClient()
     : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, validRB{false}
 {
@@ -74,7 +73,6 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
     // user-defined interval (on the order of 10ms)?
 
     this->print_startup();
-    this->read_po(argc, argv);
 
     // instantiate client and make connection
     this->pClient = new NatNetClient();
@@ -83,15 +81,26 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
         return;
     }
 
-    // initialize filters for derivatives (maybe merge into read_po)
-    for (unsigned int i=0; i < MAX_TRACKED_RB; i++)
-        derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
-
     // register callback
     ErrorCode ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
     if (ret != ErrorCode_OK) {
         std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
+        return;
     }
+}
+
+CyberZooMocapClient::~CyberZooMocapClient()
+{
+}
+
+void CyberZooMocapClient::start(int argc, const char *argv[])
+{
+    this->read_po(argc, argv);
+
+    // initialize filters for derivatives
+    for (unsigned int i=0; i < MAX_TRACKED_RB; i++)
+        derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
+
 
     // wait for keystrokes
     std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
@@ -108,10 +117,6 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
     }
 }
 
-CyberZooMocapClient::~CyberZooMocapClient()
-{
-}
-
 void CyberZooMocapClient::read_po(int argc, char const *argv[])
 {
     namespace po = boost::program_options;
@@ -123,6 +128,9 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
     ;
 
+    // Adding any extra program options from the sub-class
+    this->add_extra_po(desc);
+
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);    
@@ -133,7 +141,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     }
 
     if (vm.count("publish_frequency")) {
-        this->publish_frequency = vm["compression"].as<float>();
+        this->publish_frequency = vm["publish_frequency"].as<float>();
         std::cout << "Publish frequency was set to " 
                   << this->publish_frequency << std::endl;
     } else {
@@ -193,6 +201,9 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
             std::cout << "Cannot track Rigid Body with streaming id " << i << ". Too many rigid bodies." << std::endl;
         }
     }
+
+    // Parsing the extra program options from the sub-class
+    this->parse_extra_po(vm);
 }
 
 void CyberZooMocapClient::print_startup() const
