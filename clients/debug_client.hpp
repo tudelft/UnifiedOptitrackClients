@@ -7,12 +7,6 @@ public:
     {
     }
 
-    void listenToKeystrokes()
-    {
-        // wait for keystrokes
-        std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
-    };
-
 private:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
@@ -51,10 +45,3 @@ private:
         }
     }
 };
-
-int main(int argc, char const *argv[])
-{
-    DebugImpl client = DebugImpl();
-    client.start(argc, argv);
-    return 0;
-}

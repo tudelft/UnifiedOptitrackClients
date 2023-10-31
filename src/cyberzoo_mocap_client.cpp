@@ -104,8 +104,15 @@ CyberZooMocapClient::~CyberZooMocapClient()
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::extra_start()
+void CyberZooMocapClient::pre_start()
 {
+}
+
+// Non-action implementation of the virtual function to make the implementation optional
+void CyberZooMocapClient::post_start()
+{
+    // must be blocking!
+    this->pubThread.join();
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
@@ -129,8 +136,26 @@ void CyberZooMocapClient::publish_loop()
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(this->publish_dt * 1s);
     }
-
 }
+
+void CyberZooMocapClient::keystroke_loop()
+{
+    // wait for keystrokes
+    std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+	while ( const int c = getch() )
+    {
+        switch(c)
+        {
+            case 'q':
+                std::raise(SIGINT);
+                break;
+            case 't':
+                this->togglePrintMessages();
+                break;
+        }
+    }
+}
+
 void CyberZooMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
@@ -139,9 +164,10 @@ void CyberZooMocapClient::start(int argc, const char *argv[])
     for (unsigned int i=0; i < MAX_TRACKED_RB; i++)
         derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
 
-    this->extra_start();
-
-    std::thread pub(&CyberZooMocapClient::publish_loop, this);
+    this->pre_start();
+    this->pubThread = std::thread(&CyberZooMocapClient::publish_loop, this);
+    this->keyThread = std::thread(&CyberZooMocapClient::keystroke_loop, this);
+    this->post_start();
     //pub.join();
 }
 

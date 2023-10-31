@@ -3,7 +3,6 @@
 #include <Ivy/ivy.h>
 #include <Ivy/ivyglibloop.h>
 #include <Ivy/ivyloop.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <csignal>
 
@@ -46,10 +45,16 @@ public:
         }
     }
 
-    void extra_start() override
+    void pre_start() override
     {
         IvyInit ("NatNet2Ivy", "NatNet2Ivy READY", NULL, NULL, NULL, NULL);
         IvyStart(this->bip.c_str());
+    }
+
+    void post_start() override
+    {
+        // must be blocking!
+        IvyMainLoop();
     }
 
     void publish_data() override
@@ -70,14 +75,3 @@ private:
     uint8_t _ac_id;
     std::string bip;
 };
-
-int main(int argc, char const *argv[])
-{
-    NatNet2Ivy client = NatNet2Ivy();
-    client.start(argc, argv);
-
-    IvyMainLoop();
-
-    return 0;
-}
-
