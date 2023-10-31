@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <string>
-#include <boost/program_options.hpp>
+#include <thread>
 #include <boost/algorithm/string.hpp>
 #include <functional>
 
@@ -58,22 +58,29 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
     that->natnet_data_handler(data);
 };
 
-CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
-    : publish_frequency{100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
-    nTrackedRB{0}, validRB{false}, _initialized{false}
+CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
+{
+    (void) other;
+    std::cerr << "Copy constructor for CyberZooMocapClient not supported. Exiting." << std::endl;
+    exit(-1);
+}
+
+CyberZooMocapClient::CyberZooMocapClient()
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    nTrackedRB{0}, validRB{false}
 {
 
     // TODO: use builtin forward prediction with the latency estimates plus a 
     // user-defined interval (on the order of 10ms)?
 
     this->print_startup();
-    this->read_po(argc, argv);
 
-    // process streaming ids (maybe merge into read_po)
-    for (unsigned int i : this->streaming_ids) {
-        if (this->trackRB(i) == -1) {
-            std::cout << "Cannot track Rigid Body with streaming id " << i << ". Too many rigid bodies." << std::endl;
-        }
+    // Initialize non-trivial arrays
+    for(unsigned int i = 0; i < MAX_TRACKED_RB; i++)
+    {
+        this->validRB[i] = false;
+        this->poseRB[i] = pose_t();
+        this->poseDerRB[i] = pose_der_t(); 
     }
 
     // instantiate client and make connection
@@ -84,22 +91,58 @@ CyberZooMocapClient::CyberZooMocapClient(int argc, char const *argv[])
         return;
     }
 
-    // initialize filters for derivatives (maybe merge into read_po)
-    for (int i=0; i < MAX_TRACKED_RB; i++)
-        derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
-
-    // register callbacl
+    // register callback
     ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
     if (ret != ErrorCode_OK) {
         std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
         return;
     }
-
-    _initialized = true;
 }
 
 CyberZooMocapClient::~CyberZooMocapClient()
 {
+}
+
+// Non-action implementation of the virtual function to make the implementation optional
+void CyberZooMocapClient::extra_start()
+{
+}
+
+// Non-action implementation of the virtual function to make the implementation optional
+void CyberZooMocapClient::add_extra_po(boost::program_options::options_description &desc)
+{
+    (void)desc;
+}
+
+// Non-action implementation of the virtual function to make the implementation optional
+void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables_map &vm)
+{
+    (void)vm;
+}
+
+void CyberZooMocapClient::publish_loop()
+{
+    bool run = true;
+    while(run)
+    {
+        this->publish_data();
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(this->publish_dt * 1s);
+    }
+
+}
+void CyberZooMocapClient::start(int argc, const char *argv[])
+{
+    this->read_po(argc, argv);
+
+    // initialize filters for derivatives
+    for (unsigned int i=0; i < MAX_TRACKED_RB; i++)
+        derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
+
+    this->extra_start();
+
+    std::thread pub(&CyberZooMocapClient::publish_loop, this);
+    //pub.join();
 }
 
 void CyberZooMocapClient::read_po(int argc, char const *argv[])
@@ -113,6 +156,9 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
     ;
 
+    // Adding any extra program options from the sub-class
+    this->add_extra_po(desc);
+
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);    
@@ -123,12 +169,12 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     }
 
     if (vm.count("publish_frequency")) {
-        this->publish_frequency = vm["compression"].as<float>();
+        this->publish_dt = 1.0 / vm["publish_frequency"].as<float>();
         std::cout << "Publish frequency was set to " 
-                  << this->publish_frequency << std::endl;
+                  << 1.0 / this->publish_dt << std::endl;
     } else {
         std::cout << "Publish frequency not set, defaulting to " 
-                  << this->publish_frequency
+                  << 1.0 / this->publish_dt
                   << " Hz" << std::endl;   
     }
 
@@ -176,6 +222,16 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         std::cout << "Coordinate System not set, defaulting to "
                   << this->co << std::endl;
     }
+
+    // process streaming ids
+    for (unsigned int i : this->streaming_ids) {
+        if (this->trackRB(i) == -1) {
+            std::cout << "Cannot track Rigid Body with streaming id " << i << ". Too many rigid bodies." << std::endl;
+        }
+    }
+
+    // Parsing the extra program options from the sub-class
+    this->parse_extra_po(vm);
 }
 
 void CyberZooMocapClient::print_startup() const
@@ -194,6 +250,7 @@ void CyberZooMocapClient::print_startup() const
 
 void CyberZooMocapClient::print_coordinate_system() const
 {
+    // TODO print coordinate systemes based on chosen options
     std::cout<< R"( 
                far
      +──────────────────────────+
@@ -359,7 +416,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 {
     // get timestamp
-    uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency / 1e6);
+    uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency * 1e-6);
 
     if (this->printMessages)
         std::cout << "Received data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us" << std::endl;
@@ -389,9 +446,9 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
             data->RigidBodies[i].qw,
         };
 
-        poseDerRB[idx] = derFilter[idx].apply(newPose);
-        //poseDerRawRB[idx] = derFilter[idx].getUnfiltered();
-        poseRB[idx] = newPose;
+        /* Thread safely setting the new values */
+        this->setPoseDerRB(idx, derFilter[idx].apply(newPose));
+        this->setPoseRB(idx, newPose);
 
         if (this->printMessages) {
 		    printf("Rigid Body [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);

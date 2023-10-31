@@ -2,6 +2,8 @@
 #define H_CYBERZOO_OPTITRACK_CLIENT
 
 #include <vector>
+#include <mutex>
+#include <boost/program_options.hpp>
 #include "NatNetClient.h"
 #include "NatNetTypes.h"
 #include "pose_calculations.hpp"
@@ -13,7 +15,7 @@
 char getch();
 #endif
 
-#define MAX_TRACKED_RB 10
+constexpr unsigned int MAX_TRACKED_RB = 10;
 
 
 enum CoordinateSystem { UNCHANGED=0, NED, ENU};
@@ -22,7 +24,7 @@ enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
 class CyberZooMocapClient 
 {
 private:
-    float publish_frequency;
+    float publish_dt;
     std::vector<unsigned int> streaming_ids;
     CoordinateSystem co;
     NatNetClient* pClient;
@@ -35,15 +37,15 @@ private:
     int trackedRB[MAX_TRACKED_RB];
     bool validRB[MAX_TRACKED_RB];
     pose_t poseRB[MAX_TRACKED_RB];
+    std::mutex poseMutexes[MAX_TRACKED_RB];
     pose_der_t poseDerRB[MAX_TRACKED_RB];
-    pose_der_t poseDerRawRB[MAX_TRACKED_RB];
+    std::mutex poseDerMutexes[MAX_TRACKED_RB];
     double fSample;
     sServerDescription serverConfig;
 
     FilteredDifferentiator derFilter[MAX_TRACKED_RB];
 
     void read_po(int argc, char const *argv[]);
-
     void print_startup() const;
     void print_coordinate_system() const;
     ErrorCode connectAndDetectServerSettings();
@@ -51,69 +53,86 @@ private:
     bool _initialized;
 
 protected:
-   
-
-public:
-    CyberZooMocapClient(int argc, char const *argv[]);
-    ~CyberZooMocapClient();
-    bool isInitialized() { return _initialized; };
-    void natnet_data_handler(sFrameOfMocapData* data);
-    void togglePrintMessages() { printMessages ^= true; };
-    int getIndexRB(int id) { 
-        for (int i=0; i < this->nTrackedRB; i++) {
-            if (this->trackedRB[i] == id)
-                return i;
-        }
-        return -1;
-    };
-    int trackRB(int id) {
+   int trackRB(unsigned int id) {
         int i = this->getIndexRB(id);
         if (i > -1) { return i; } // already tracked, that's fine
         if (this->nTrackedRB >= MAX_TRACKED_RB) { return -1; } // cannot add, too many RBs
         this->trackedRB[this->nTrackedRB] = id;
         return this->nTrackedRB++;
     };
-    bool untrackRB(int id) {
-        int i = this->getIndexRB(id);
-        if (i == -1) { return true; } // already not tracked
-        else { this->trackedRB[i] = -1; }
-        this->nTrackedRB--;
-        return true;
-    };
-    bool getPoseRB(int id, pose_t* pose) {
-        int i = this->getIndexRB(id);
-        if (i == -1) { return false; } // not tracked; abort
-        memcpy(pose, &(this->poseRB[i]), sizeof(pose_t));
-        return true;
-    };
-    bool getPoseDerRB(int id, pose_der_t* poseDer) {
-        int i = this->getIndexRB(id);
-        if (i == -1) { return false; } // not tracked; abort
-        memcpy(poseDer, &(this->poseDerRB[i]), sizeof(pose_der_t));
-        return true;
-    };
-    bool isValidRB(int id) {
-        int i = this->getIndexRB(id);
-        if (i == -1) { return false; } // not tracked; abort
-        return validRB[i];
-    };
-    void listenToKeystrokes(void)
+
+    int8_t getNTrackedRB(){
+        return this->nTrackedRB;
+    }
+    int getIdRB(unsigned int idx)
     {
-        // wait for keystrokes
-        std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
-    	while ( const int c = getch() )
-        {
-            switch(c)
-            {
-                case 'q':
-                    std::raise(SIGTERM);
-                    break;
-                case 't':
-                    this->togglePrintMessages();
-                    break;
-            }
-        }
+        return this->trackedRB[idx];
+    }
+    bool getValidRB(unsigned int idx)
+    {
+        return this->validRB[idx];
+    }
+    /* Thread safe mutators and accessors for the current pose 
+     * and pose derivative values. */
+    bool setPoseRB(unsigned int idx, pose_t pose) {
+        // Lock respective mutex
+        this->poseMutexes[idx].lock();
+        memcpy(&(this->poseRB[idx]), &pose, sizeof(pose_t));
+        this->poseMutexes[idx].unlock();
+        return true;
     };
+    pose_t getPoseRB(unsigned int idx){
+        // Lock respective mutex
+        this->poseMutexes[idx].lock();
+        pose_t pose(this->poseRB[idx]);
+        this->poseMutexes[idx].unlock();
+        return pose;
+    };
+    bool setPoseDerRB(int idx, pose_der_t poseDer) {
+        // Lock respective mutex
+        this->poseDerMutexes[idx].lock();
+        memcpy(&(this->poseDerRB[idx]), &poseDer, sizeof(pose_der_t));
+        this->poseDerMutexes[idx].unlock();
+        return true;
+    };
+    pose_der_t getPoseDerRB(unsigned int idx){
+        // Lock respective mutex
+        this->poseDerMutexes[idx].lock();
+        pose_der_t pose_der(this->poseDerRB[idx]);
+        this->poseDerMutexes[idx].unlock();
+        return pose_der;
+    };
+
+    /* Function that is used to spin up the publish thread */
+    void publish_loop();
+    /* Virtual Function to be implemented by base classes */
+    // called at the end of start()
+    virtual void extra_start(); 
+    // Extra Program Options
+    virtual void add_extra_po(boost::program_options::options_description &desc);
+    virtual void parse_extra_po(const boost::program_options::variables_map &vm);
+    // Publishing functions
+    virtual void publish_data() = 0;
+    
+
+public:
+    CyberZooMocapClient();
+    CyberZooMocapClient(const CyberZooMocapClient &other);
+    ~CyberZooMocapClient();
+    void natnet_data_handler(sFrameOfMocapData* data);
+
+    /* Function that needs to be called after creating
+     * the client to start everything */
+    void start(int argc, char const *argv[]);
+
+    int getIndexRB(int id) { 
+        for (unsigned int i=0; i < this->nTrackedRB; i++) {
+            if (this->trackedRB[i] == id)
+                return i;
+        }
+        return -1;
+    };
+    
 };
 
 

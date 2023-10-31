@@ -5,70 +5,76 @@
 #include <Ivy/ivyloop.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <csignal>
 
 class NatNet2Ivy : public CyberZooMocapClient
 {
 public:
-    NatNet2Ivy(int argc, char const *argv[], uint8_t ac_id) : CyberZooMocapClient(argc, argv)
+    NatNet2Ivy()
     {
-        _ac_id = ac_id;
-        _freq = 100; // HZ
     }
 
-    void publishLoop() {
-        while (true) {
-            usleep((unsigned int) (1000000.f / _freq)); // replace this by a scheduled thread somehow?
-            // TODO: mutex lock
-            unsigned int id = 126;
+    void add_extra_po(boost::program_options::options_description &desc) override
+    {
+        desc.add_options()
+            ("ac_id,ac", boost::program_options::value<unsigned int>(), "Aircraft Id to forward IVY messages to.")
+            ("broadcast_address,b", boost::program_options::value<std::string>(), "Ivy broadcast ip address.")
+        ;
+    }
 
-            if (!isValidRB(id)) { continue; }
+    void parse_extra_po(const boost::program_options::variables_map &vm) override
+    {
+        if (vm.count("ac_id"))
+        {
+            int val = vm["ac_id"].as<int>();
+            std::cout << "Aircraft Id set to "
+                      << val << std::endl;
+            this->_ac_id = val;
+        } else {
+            std::cout << "No aircraft id passed, but is required." << std::endl;
+            std::raise(SIGINT);
+        }
 
-            pose_t pose;
-            pose_der_t poseDer;
-            getPoseRB(id, &pose); // should not need to check return flags
-            getPoseDerRB(id, &poseDer);
+        if (vm.count("broadcast_address"))
+        {
+            std::string val = vm["broadcast_address"].as<std::string>();
+            std::cout << "Ivy broadcast ip set to " << val << std::endl;
+            this->bip = val;
+        } else {
+            std::cout << "No ivy broadcast ip passed, assume 127.255.255.255" << std::endl;
+            this->bip = "127.255.255.255";
+        }
+    }
+
+    void extra_start() override
+    {
+        IvyInit ("NatNet2Ivy", "NatNet2Ivy READY", NULL, NULL, NULL, NULL);
+        IvyStart(this->bip.c_str());
+    }
+
+    void publish_data() override
+    {
+        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
+        {
+            pose_t pose = this->getPoseRB(i);
+            pose_der_t pose_der = this->getPoseDerRB(i);
             IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
                 _ac_id, pose.timeUs/1000,  //todo: probably not the right timestamp
                 pose.x, pose.y, pose.z,
-                poseDer.x, poseDer.y, poseDer.z,
+                pose_der.x, pose_der.y, pose_der.z,
                 pose.qw, pose.qx, pose.qy, pose.qz);
-
-            // mutex unlock
         }
-    };
+    }
+
 private:
     uint8_t _ac_id;
-    uint16_t _freq;
+    std::string bip;
 };
-
-void *runPublisher(void* ptr) {
-    NatNet2Ivy* that = (NatNet2Ivy *) ptr;
-    that->publishLoop();
-    return NULL;
-}
-
-void *keyListener(void* ptr) {
-    NatNet2Ivy* that = (NatNet2Ivy *) ptr;
-    that->listenToKeystrokes();
-    return NULL;
-}
 
 int main(int argc, char const *argv[])
 {
-    uint8_t ac_id = 2;
-    NatNet2Ivy client = NatNet2Ivy(argc, argv, ac_id);
-    if (!client.isInitialized()) {
-        return 1;
-    }
-
-    IvyInit ("NatNet2Ivy", "NatNet2Ivy READY", NULL, NULL, NULL, NULL);
-    IvyStart("127.255.255.255");
-
-    pthread_t pub;
-    pthread_create( &pub, NULL, runPublisher, (void*) &client);
-
-    pthread_t keys;
-    pthread_create( &keys, NULL, keyListener, (void*) &client);
+    NatNet2Ivy client = NatNet2Ivy();
+    client.start(argc, argv);
 
     IvyMainLoop();
 

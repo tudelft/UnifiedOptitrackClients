@@ -1,9 +1,9 @@
 # Define RCLCPP_LOG_MIN_SEVERITY=RCLCPP_LOG_MIN_SEVERITY_[DEBUG|INFO|WARN|ERROR|FATAL] in your build options to compile out anything below that severity. Use RCLCPP_LOG_MIN_SEVERITY_NONE to compile out all macros.
 add_compile_definitions(RCLCPP_LOG_MIN_SEVERITY=RCLCPP_LOG_MIN_SEVERITY_DEBUG)
 
-cmake_minimum_required(VERSION 3.10)
-project(optitrack_clients LANGUAGES C CXX)
-set (CMAKE_CXX_STANDARD 11)
+cmake_minimum_required(VERSION 3.5)
+project(optitrack_clients LANGUAGES CXX)
+set (CMAKE_CXX_STANDARD 14)
 
 find_library(IVY_LIB NAMES ivy)
 
