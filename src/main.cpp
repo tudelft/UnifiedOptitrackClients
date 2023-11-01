@@ -1,10 +1,17 @@
 #include <boost/filesystem.hpp>
 
 #include "cyberzoo_mocap_client.hpp"
-#include "debug_client.hpp"
+
+#ifdef USE_CLIENT_DEBUG
+    #include "debug_client.hpp"
+#endif
 
 #ifdef USE_CLIENT_IVY
     #include "ivy_client.hpp"
+#endif
+
+#ifdef USE_CLIENT_UDP
+    #include "udp_client.hpp"
 #endif
 
 int main(int argc, char const *argv[])
@@ -24,6 +31,14 @@ int main(int argc, char const *argv[])
         std::cout << "Using client " << p.filename() << std::endl;
 
         NatNet2Ivy client = NatNet2Ivy();
+        client.start(argc, argv);
+    } else 
+#endif
+#ifdef USE_CLIENT_UDP
+    if (p.filename() == "natnet2udp") {
+        std::cout << "Using client " << p.filename() << std::endl;
+
+        NatNet2Udp client = NatNet2Udp();
         client.start(argc, argv);
     } else 
 #endif

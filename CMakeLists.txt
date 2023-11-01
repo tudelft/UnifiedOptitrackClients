@@ -8,15 +8,13 @@ project(optitrack_clients LANGUAGES CXX)
 # Define a cache variable as a string
 if(NOT DEFINED CLIENTS)
     message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "debug;ivy" CACHE STRING "Clients to build into the binary")
+    set(CLIENTS "debug;ivy;udp" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
 add_executable(client src/main.cpp src/cyberzoo_mocap_client.cpp)
 
 foreach(x ${CLIENTS})
     string(TOUPPER ${x} uppercase)
-    message(STATUS ${uppercase})
-    message(STATUS ${x})
     add_definitions(-DUSE_CLIENT_${uppercase})
     ADD_CUSTOM_TARGET(${x}_symlink ALL
                       COMMAND ${CMAKE_COMMAND} -E create_symlink client natnet2${x}
@@ -65,4 +63,8 @@ if ("ivy" IN_LIST CLIENTS)
 
     add_definitions(${GLIB_CFLAGS_OTHER})
     target_link_libraries(client ${GLIB_LIBRARIES})
+endif()
+
+if ("udp" IN_LIST CLIENTS)
+    find_package(Boost REQUIRED COMPONENTS system)
 endif()

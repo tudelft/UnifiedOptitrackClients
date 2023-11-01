@@ -23,6 +23,7 @@ public:
 
     void parse_extra_po(const boost::program_options::variables_map &vm) override
     {
+        // TODO: make this a list to correspond to rigid_body ids
         if (vm.count("ac_id"))
         {
             int val = vm["ac_id"].as<int>();

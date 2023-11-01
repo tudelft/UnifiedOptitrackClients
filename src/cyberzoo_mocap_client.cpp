@@ -88,6 +88,7 @@ CyberZooMocapClient::CyberZooMocapClient()
     ErrorCode ret = this->connectAndDetectServerSettings();
     if (ret != ErrorCode_OK) {
         // returning from main is best for cleanup?
+        //std::raise(SIGINT);
         return;
     }
 
