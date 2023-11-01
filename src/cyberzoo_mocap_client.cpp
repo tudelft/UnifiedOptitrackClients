@@ -191,7 +191,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         ("publish_frequency,f", po::value<float>(), "publishing frequency of the MoCap odometry")
         ("streaming_ids,s", po::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to track")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
-        ("long_side,l", po::value<std::string>(), "direction of long edge during calibration[right, far_side, left, near_side]")
+        ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration[right, far_side, left, near_side]")
     ;
 
     // Adding any extra program options from the sub-class
@@ -288,12 +288,12 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
             exit(0);
         }
         
-        std::cout << "Coordinate system set to " << this->long_edge << std::endl;
+        std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
 
     }
     else
     {
-        std::cout << "Coordinate System not set, defaulting to "
+        std::cout << "Long Edge direction not set, defaulting to "
                   << this->long_edge << std::endl;
     }
 
