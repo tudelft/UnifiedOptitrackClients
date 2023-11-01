@@ -98,7 +98,7 @@ CyberZooMocapClient::CyberZooMocapClient()
     ErrorCode ret = this->connectAndDetectServerSettings();
     if (ret != ErrorCode_OK) {
         // returning from main is best for cleanup?
-        //std::raise(SIGINT);
+        std::raise(SIGINT);
         return;
     }
 
@@ -345,10 +345,8 @@ left │                          │ right
 ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
 {
     ErrorCode ret;
-
-#ifdef USE_DISCOVERY
-#define DISCOVERY_TIMEOUT 1000
-#define MAX_DISCOVERY 10
+    static constexpr unsigned int DISCOVERY_TIMEOUT = 1000;
+    static constexpr unsigned int MAX_DISCOVERY = 10;
     std::cout<<std::endl<<"Discovering NatNet servers (timeout " << DISCOVERY_TIMEOUT << "ms)... ";
 
     int n = 1;
@@ -375,9 +373,12 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         }
         return ErrorCode_Network;
 
-    } else if (!(availableServers[0].serverDescription.bConnectionInfoValid)) {
+    }
+    /*
+    else if (!(availableServers[0].serverDescription.bConnectionInfoValid)) {
         std::cout << "Failed: server ConnectionInfo invalid" << std::endl;
     }
+    */
 
     std::cout << "Successful!" << std::endl;
 
@@ -403,7 +404,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     );
     this->connectParams.multicastAddress = mcastAddress;
 
-#else
+/*
     this->connectParams.connectionType = ConnectionType_Multicast;
     this->connectParams.serverCommandPort = NATNET_DEFAULT_PORT_COMMAND;
     this->connectParams.serverDataPort = NATNET_DEFAULT_PORT_DATA;
@@ -412,7 +413,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     this->connectParams.multicastAddress = NATNET_DEFAULT_MULTICAST_ADDRESS;
     this->connectParams.subscribedDataOnly = false; // no idea what this does
     memset(this->connectParams.BitstreamVersion, 0, sizeof(this->connectParams.BitstreamVersion)); // no idea what this is
-#endif
+*/
 
     std::cout << std::endl << "Attempting connection to " << this->connectParams.serverAddress << "... ";
     ret = this->pClient->Connect(this->connectParams);
@@ -430,17 +431,10 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
         return ret;
     }
 
-    // TODO: properly check for version >2
-    bool verAtLeast2 = true;
-    bool forceVerAtLeast2 = false;
-    if (!verAtLeast2 && forceVerAtLeast2) {
-        return ErrorCode_Other;
-    }
-
     void* response;
     int nBytes;
 
-    // detect host clock settings for accurate time calcs
+    // detect host clock settings (for accurate time calcs and version detection)
     std::cout<<"Detecting Server Configuration.. ";
     memset( &(this->serverConfig), 0, sizeof( this->serverConfig ) );
     ret = this->pClient->GetServerDescription(&(this->serverConfig));
@@ -449,6 +443,13 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     } else {
         std::cout << "Error code " << ret << std::endl;
         return ret;
+    }
+
+    // abort if unsupported NatNetVersion
+    if (this->serverConfig.NatNetVersion[0] < 3) {
+        std::cout << "ERROR: NatNet Version < 3 detected. Use Motive 2.x or newer"
+            << std::endl;
+        return ErrorCode::ErrorCode_External;
     }
 
     // detect frame rate
@@ -463,19 +464,14 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     }
 
     // detect up axis
-    if (verAtLeast2) {
-        std::cout<<"Detecting up axis... ";
-        ret = this->pClient->SendMessageAndWait("GetProperty,,Up Axis", &response, &nBytes);
-        if (ret == ErrorCode_OK) {
-            this->upAxis = static_cast<UpAxis>( ((char*)response)[0] - '0' );
-            std::cout << this->upAxis << std::endl;
-        } else {
-            std::cout << "Error code " << ret << std::endl;
-            return ret;
-        }
+    std::cout<<"Detecting up axis... ";
+    ret = this->pClient->SendMessageAndWait("GetProperty,,Up Axis", &response, &nBytes);
+    if (ret == ErrorCode_OK) {
+        this->upAxis = static_cast<UpAxis>( ((char*)response)[0] - '0' );
+        std::cout << this->upAxis << std::endl;
     } else {
-        this->upAxis = UpAxis::Y;
-        std::cout << "WARNING: Motive version less than 2. Assuming y_up is set." << std::endl;
+        std::cout << "Error code " << ret << std::endl;
+        return ret;
     }
 
     // inform user
