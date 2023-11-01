@@ -41,6 +41,9 @@ int main(int argc, char const *argv[])
         CyberZooMocapClient client = CyberZooMocapClient(); client.start(argc, argv);
     } else
 
+    if (p.filename() == "natnet2console") {
+        CyberZooMocapClient client = CyberZooMocapClient(); client.start(argc, argv);
+    } else
 #ifdef USE_CLIENT_DEBUG
     if (p.filename() == "natnet2debug") {
         NatNet2Debug client = NatNet2Debug(); client.start(argc, argv);
@@ -89,6 +92,7 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
+    std::cout << "Using client " << p.filename() << std::endl;
     return 0;
 }
 

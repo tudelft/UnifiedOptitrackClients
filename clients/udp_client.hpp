@@ -60,6 +60,21 @@ public:
             std::cout << "As many ac_ids as streaming_ids required" << std::endl;
             std::raise(SIGINT);
         }
+
+        if(vm.count("ac_id")) {
+            this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
+            if (this->_ac_id.size() != this->getStreamingIds().size()) {
+                std::cout << "Number of ac_ids and streaming_ids passed must be equal"
+                    << std::endl;
+                std::raise(SIGINT);
+            }
+            std::cout << "AC IDs set to";
+            for(unsigned int id : this->_ac_id) std::cout << " " << id << " ";
+            std::cout << std::endl;
+        } else {
+            std::cout << "As many ac_ids as streaming_ids required" << std::endl;
+            std::raise(SIGINT);
+        }
     }
 
     void pre_start() override
