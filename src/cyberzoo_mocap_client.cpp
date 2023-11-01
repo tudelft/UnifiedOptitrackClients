@@ -43,6 +43,16 @@ std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
     return lhs;
 } 
 
+std::ostream& operator<<(std::ostream& lhs, LongEdge e) {
+    switch(e) {
+    case RIGHT: lhs << "RIGHT"; break;
+    case FAR_SIDE: lhs << "FAR_SIDE"; break;
+    case LEFT: lhs << "LEFT"; break;
+    case NEAR_SIDE: lhs << "NEAR_SIDE"; break;
+    }
+    return lhs;
+} 
+
 std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
     switch(e) {
     case NOTDETECTED: lhs << "NOTDETECTED"; break;
@@ -66,7 +76,7 @@ CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
 }
 
 CyberZooMocapClient::CyberZooMocapClient()
-    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{LongEdge::RIGHT}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, validRB{false}
 {
 
@@ -181,6 +191,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         ("publish_frequency,f", po::value<float>(), "publishing frequency of the MoCap odometry")
         ("streaming_ids,s", po::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to track")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
+        ("long_side,l", po::value<std::string>(), "direction of long edge during calibration[right, far_side, left, near_side]")
     ;
 
     // Adding any extra program options from the sub-class
@@ -248,6 +259,42 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     {
         std::cout << "Coordinate System not set, defaulting to "
                   << this->co << std::endl;
+    }
+
+    if(vm.count("long_edge"))
+    {
+        std::string le = vm["long_edge"].as<std::string>();
+        boost::algorithm::to_lower(le);
+
+        if(le.compare("right") == 0)
+        {
+            this->long_edge = LongEdge::RIGHT;
+        }
+        else if(le.compare("far_side") == 0)
+        {
+            this->long_edge = LongEdge::FAR_SIDE;
+        }
+        else if (le.compare("left") == 0)
+        {
+            this->long_edge = LongEdge::LEFT;
+        }
+        else if (le.compare("near_side") == 0)
+        {
+            this->long_edge = LongEdge::NEAR_SIDE;
+        }
+        else
+        {
+            std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
+            exit(0);
+        }
+        
+        std::cout << "Coordinate system set to " << this->long_edge << std::endl;
+
+    }
+    else
+    {
+        std::cout << "Coordinate System not set, defaulting to "
+                  << this->long_edge << std::endl;
     }
 
     // process streaming ids
@@ -440,6 +487,138 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     return ErrorCode_OK;
 }
 
+pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
+{
+    pose_t result(newPose);
+    
+    if(this->co != CoordinateSystem::UNCHANGED)
+    {
+
+        float x_copy = result.x;
+        float y_copy = result.y;
+        float z_copy = result.z;
+
+        float qw_copy = result.qw;
+        float qx_copy = result.qx;
+        float qy_copy = result.qy;
+        float qz_copy = result.qz;
+
+        switch(this->upAxis)
+        {
+            case UpAxis::X:
+                // Transform from X-Up to Y-Up
+                result.x = -y_copy;
+                result.y = x_copy;
+                result.z = z_copy;
+
+                result.qw = qw_copy;
+                result.qx = -qy_copy;
+                result.qy = qx_copy;
+                result.qz = qz_copy;
+                break;
+            case UpAxis::Y:
+                // We do nothing because this is what we want to have
+                break;
+            case UpAxis::Z:
+                // Transform from X-Up to Y-Up
+                result.x = qx_copy;
+                result.y = qz_copy;
+                result.z = -qy_copy;
+
+                result.qw = qw_copy;
+                result.qx = qx_copy;
+                result.qy = qz_copy;
+                result.qz = -qy_copy;
+                break;
+            case UpAxis::NOTDETECTED:
+                // The up axis is not known. Abort
+                std::cerr << "The up-axis is not detected. Aborting." << std::endl;
+                exit(1); 
+                break;    
+            default:
+                break;
+        }
+
+        x_copy = result.x;
+        y_copy = result.y;
+        z_copy = result.z;
+
+        qw_copy = result.qw;
+        qx_copy = result.qx;
+        qy_copy = result.qy;
+        qz_copy = result.qz;
+
+        switch(this->long_edge)
+        {
+
+            case LongEdge::RIGHT:
+                // We do nothing because this is what we want to have
+                break;
+            case LongEdge::FAR_SIDE:
+                // Rotate to align in the yaw plane
+                result.x = z_copy;
+                result.z = -x_copy;
+
+                result.qx = qz_copy;
+                result.qz = -qx_copy;
+                break;
+            case LongEdge::LEFT:
+                // Rotate to align in the yaw plane
+                result.x = -x_copy;
+                result.z = -z_copy;
+
+                result.qx = -qx_copy;
+                result.qz = -qz_copy;
+                break;
+            case LongEdge::NEAR_SIDE:
+                // Rotate to align in the yaw plane
+                result.x = -z_copy;
+                result.z = x_copy;
+
+                result.qx = -qz_copy;
+                result.qz = qx_copy;
+                break;
+        }
+
+        x_copy = result.x;
+        y_copy = result.y;
+        z_copy = result.z;
+
+        qw_copy = result.qw;
+        qx_copy = result.qx;
+        qy_copy = result.qy;
+        qz_copy = result.qz;
+
+        switch(this->co)
+        {
+            case CoordinateSystem::ENU:
+                // Transform to ENU
+                result.x = z_copy;
+                result.y = x_copy;
+                result.z = y_copy;
+
+                result.qx = qz_copy;
+                result.qy = qx_copy;
+                result.qz = qy_copy;
+                break;
+            case CoordinateSystem::NED:
+                // Transform to NED
+                result.x = x_copy;
+                result.y = z_copy;
+                result.z = -y_copy;
+
+                result.qx = qx_copy;
+                result.qy = qz_copy;
+                result.qz = -qy_copy;
+                break;
+            default:
+                break;
+        }
+    }
+
+    return result;
+}
+
 void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 {
     // get timestamp
@@ -472,6 +651,9 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
             data->RigidBodies[i].qz,
             data->RigidBodies[i].qw,
         };
+
+        /* Transform the pose to the desired coordinate system */
+        newPose = this->transform_pose(newPose);
 
         /* Thread safely setting the new values */
         this->setPoseDerRB(idx, derFilter[idx].apply(newPose));

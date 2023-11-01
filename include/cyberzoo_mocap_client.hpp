@@ -21,6 +21,7 @@ constexpr unsigned int MAX_TRACKED_RB = 10;
 
 enum CoordinateSystem { UNCHANGED=0, NED, ENU};
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
+enum LongEdge{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
 
 class CyberZooMocapClient 
 {
@@ -28,6 +29,7 @@ private:
     float publish_dt;
     std::vector<unsigned int> streaming_ids;
     CoordinateSystem co;
+    LongEdge long_edge;
     NatNetClient* pClient;
     sNatNetClientConnectParams connectParams;
     UpAxis upAxis;
@@ -49,6 +51,10 @@ private:
     void read_po(int argc, char const *argv[]);
     void print_startup() const;
     void print_coordinate_system() const;
+
+    /* Transforms an unchanged pose to the desired coordinate system */
+    pose_t transform_pose(const pose_t);
+
     ErrorCode connectAndDetectServerSettings();
 
     bool _initialized;
