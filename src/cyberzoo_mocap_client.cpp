@@ -287,7 +287,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
             std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
             exit(0);
         }
-        
+
         std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
 
     }
@@ -517,9 +517,9 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
                 break;
             case UpAxis::Z:
                 // Transform from X-Up to Y-Up
-                result.x = qx_copy;
-                result.y = qz_copy;
-                result.z = -qy_copy;
+                result.x = x_copy;
+                result.y = z_copy;
+                result.z = -y_copy;
 
                 result.qw = qw_copy;
                 result.qx = qx_copy;
