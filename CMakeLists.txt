@@ -51,7 +51,6 @@ target_link_libraries(client natnet_sdk)
 
 # client specific stuff
 if ("ivy" IN_LIST CLIENTS)
-    add_definitions(-DUSE_DISCOVERY)
     find_library(IVY_LIB NAMES ivy)
     target_link_libraries(client ivy)
 

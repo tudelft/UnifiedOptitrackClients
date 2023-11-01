@@ -1,6 +1,7 @@
 Currently supported clients:
 - `debug`
 - `ivy`
+- `udp`
 
 Build all with:
 ```shell
@@ -13,3 +14,8 @@ Build only some with (for example):
 mkdir build && cd build
 cmake -D'CLIENTS=debug' .. && make
 ```
+
+## Prerequisites
+
+TODO: how to get ivy-c-dev?
+
