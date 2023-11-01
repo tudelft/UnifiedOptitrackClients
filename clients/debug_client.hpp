@@ -45,10 +45,3 @@ private:
         }
     }
 };
-
-int main(int argc, char const *argv[])
-{
-    DebugImpl client = DebugImpl();
-    client.start(argc, argv);
-    return 0;
-}

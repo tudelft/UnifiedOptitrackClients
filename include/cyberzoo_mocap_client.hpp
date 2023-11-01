@@ -9,6 +9,8 @@
 #include "pose_calculations.hpp"
 
 #include <iostream>
+#include <csignal>
+#include <thread>
 
 #ifndef _WIN32
 char getch();
@@ -49,6 +51,11 @@ private:
     void print_coordinate_system() const;
     ErrorCode connectAndDetectServerSettings();
 
+    bool _initialized;
+    std::thread pubThread;
+    std::thread keyThread;
+
+    void togglePrintMessages() { printMessages ^= true; };
 
 protected:
    int trackRB(unsigned int id) {
@@ -103,7 +110,11 @@ protected:
 
     /* Function that is used to spin up the publish thread */
     void publish_loop();
+    void keystroke_loop();
     /* Virtual Function to be implemented by base classes */
+    // called just before/after start of the publishing thread
+    virtual void pre_start(); 
+    virtual void post_start(); // must be blocking
     // Extra Program Options
     virtual void add_extra_po(boost::program_options::options_description &desc);
     virtual void parse_extra_po(const boost::program_options::variables_map &vm);
