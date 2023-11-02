@@ -41,8 +41,8 @@ public:
             std::cout << "Streaming UDP on port " << val << std::endl;
             this->_port = val;
         } else {
-            std::cout << "No UDP port given. Assume 5004" << std::endl;
-            this->_port = 5004;
+            std::cout << "No UDP port given. Assume 5005" << std::endl;
+            this->_port = 5005;
         }
 
         if(vm.count("ac_id")) {
