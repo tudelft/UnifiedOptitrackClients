@@ -21,7 +21,7 @@ public:
         desc.add_options()
             ("client_ip,i", boost::program_options::value<std::string>(), "IP to stream the UDP data to.")
             ("port,p", boost::program_options::value<unsigned short int>(), "UDP Port.")
-            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>(), "ac id(s)")
+            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>()->multitoken(), "ac id(s)")
         ;
     }
 

@@ -642,11 +642,10 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
     // get timestamp
     uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency * 1e-6);
 
-    if (this->printMessages)
-        std::cout << "Received data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us" << std::endl;
-
     // loop over bodies in frame and process the ones we listen to
+    bool printedHeader = false;
 	for(int i=0; i < data->nRigidBodies; i++) {
+
         int idx = this->getIndexRB(data->RigidBodies[i].ID);
         if (idx == -1)
             continue; // untracked by us
@@ -657,6 +656,11 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         } else {
             validRB[idx] = false;
             continue;
+        }
+
+        if ( (this->printMessages) && (!printedHeader) ) {
+            std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us. Tracked bodies:" << std::endl;
+            printedHeader = true;
         }
 
         pose_t newPose {
@@ -678,7 +682,7 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         this->setPoseRB(idx, newPose);
 
         if (this->printMessages) {
-		    printf("Rigid Body [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
+		    printf("Incoming Rigid Body Data Frame [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
 		    printf("\tx\ty\tz\tqx\tqy\tqz\tqw\n");
 		    printf("\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
 		    	data->RigidBodies[i].x,
@@ -698,6 +702,9 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
                 poseDerRB[idx].wz);
         }
     }
+
+    if ( (this->printMessages) && (!printedHeader) )
+        std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us, but none are tracked." << std::endl;
 
     return;
 }
