@@ -231,7 +231,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     if (vm.count("publish_frequency")) {
         this->publish_dt = 1.0 / vm["publish_frequency"].as<float>();
         std::cout << "Publish frequency was set to " 
-                  << 1.0 / this->publish_dt << std::endl;
+                  << 1.0 / this->publish_dt << " Hz" << std::endl;
     } else {
         std::cout << "Publish frequency not set, defaulting to " 
                   << 1.0 / this->publish_dt

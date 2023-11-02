@@ -47,8 +47,9 @@ public:
 
         if(vm.count("ac_id")) {
             this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
-            if (this->_ac_id.size() != this->getStreamingIds().size()) {
-                std::cout << "Number of ac_ids and streaming_ids passed must be equal"
+            if ( (this->_ac_id.size() != 1)
+                || (this->_ac_id.size() != this->getStreamingIds().size()) ) {
+                std::cout << "Number of ac_ids and streaming_ids passed must be equal to 1"
                     << std::endl;
                 std::raise(SIGINT);
             }
@@ -73,8 +74,12 @@ public:
         static constexpr size_t Np = sizeof(pose_t);
         static constexpr size_t Nd = sizeof(pose_der_t);
 
-        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        {
+        unsigned int i = 0;
+
+        //for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
+        //{
+            if (!(this->getValidRB(i)))
+                return;
             pose_t pose = this->getPoseRB(i);
             pose_der_t pose_der = this->getPoseDerRB(i);
             uint8_t buf[Ni+Np+Nd];
@@ -86,7 +91,7 @@ public:
             auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
             if (err.failed())
                 std::cout << "Failed with error " << err << std::endl;
-        }
+        //}
     }
 
 private:
