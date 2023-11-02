@@ -72,7 +72,7 @@ CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
 {
     (void) other;
     std::cerr << "Copy constructor for CyberZooMocapClient not supported. Exiting." << std::endl;
-    exit(-1);
+    std::raise(SIGINT);
 }
 
 CyberZooMocapClient::CyberZooMocapClient()
@@ -203,7 +203,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
 
     if (vm.count("help")) {
         std::cout << desc << "\n";
-        exit(1);
+        exit(0);
     }
 
     if (vm.count("publish_frequency")) {
@@ -249,7 +249,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         else
         {
             std::cout << "Coordinate system " << co_name << " not definied. Exiting" << std::endl;
-            exit(0);
+            std::raise(SIGINT);
         }
         
         std::cout << "Coordinate system set to " << this->co << std::endl;
@@ -285,7 +285,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         else
         {
             std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
-            exit(0);
+            std::raise(SIGINT);
         }
 
         std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
@@ -529,7 +529,7 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
             case UpAxis::NOTDETECTED:
                 // The up axis is not known. Abort
                 std::cerr << "The up-axis is not detected. Aborting." << std::endl;
-                exit(1); 
+                std::raise(SIGINT);
                 break;    
             default:
                 break;
