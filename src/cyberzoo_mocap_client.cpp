@@ -141,11 +141,23 @@ void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables
 void CyberZooMocapClient::publish_loop()
 {
     bool run = true;
+    auto ts = std::chrono::steady_clock::now();
+    float sleep_time = this->publish_dt;
     while(run)
     {
         this->publish_data();
         using namespace std::chrono_literals;
-        std::this_thread::sleep_for(this->publish_dt * 1s);
+        std::this_thread::sleep_for(sleep_time * 1s);
+
+        /* We measure the duration of publish_data and adjust 
+         * the publish_dt based on that in a closed loop fashion
+         * in order to achieve the desired frequency */
+        auto ts_new = std::chrono::steady_clock::now();
+        std::chrono::duration<float> duration = ts_new - ts;
+
+        sleep_time += 0.25 * (this->publish_dt - duration.count()); 
+
+        ts = ts_new;
     }
 }
 
