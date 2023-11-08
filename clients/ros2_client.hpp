@@ -61,8 +61,16 @@ public:
                 // Get the current pose
                 pose_t pose = this->getPoseRB(i);
 
+                // Init Message
                 geometry_msgs::msg::PoseStamped msg{};
-                msg.header.stamp = this->now();
+                
+                // Transform the pose timestamp to unix time
+                double seconds = this->seconds_since_mocap_ts(pose.timeUs);
+                uint32_t seconds_t = static_cast<int32_t>(seconds);
+                uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
+                msg.header.stamp = (this->now() - rclcpp::Duration(seconds_t, nanoseconds_t));
+
+                // Init Frame ID
                 msg.header.frame_id = "world";
 
                 // Save in message
@@ -75,6 +83,7 @@ public:
                 msg.pose.orientation.y = pose.qy;
                 msg.pose.orientation.z = pose.qz;
 
+                // Finally publish
                 this->_publishers.at(i)->publish(msg);
             }
         }

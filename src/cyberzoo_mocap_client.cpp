@@ -138,6 +138,11 @@ void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables
     (void)vm;
 }
 
+double CyberZooMocapClient::seconds_since_mocap_ts(uint64_t us)
+{
+   return this->pClient->SecondsSinceHostTimestamp(us);
+}
+
 void CyberZooMocapClient::publish_loop()
 {
     bool run = true;

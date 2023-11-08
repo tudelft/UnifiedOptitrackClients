@@ -119,6 +119,9 @@ protected:
         return pose_der;
     };
 
+    /* Returns the seconds since the a timestamp in
+     * MoCap reference time */
+    double seconds_since_mocap_ts(uint64_t us);
     /* Function that is used to spin up the publish thread */
     void publish_loop();
     void keystroke_loop();
