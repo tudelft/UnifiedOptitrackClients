@@ -61,7 +61,7 @@ private:
     std::thread pubThread;
     std::thread keyThread;
 
-    void togglePrintMessages() { printMessages ^= true; };
+    inline void togglePrintMessages() { printMessages ^= true; };
 
 protected:
    int trackRB(unsigned int id) {
@@ -74,6 +74,11 @@ protected:
 
     int8_t getNTrackedRB(){
         return this->nTrackedRB;
+    }
+
+    std::vector<unsigned int> get_streaming_ids()
+    {
+        return this->streaming_ids;
     }
     int getIdRB(unsigned int idx)
     {
@@ -114,6 +119,9 @@ protected:
         return pose_der;
     };
 
+    /* Returns the seconds since the a timestamp in
+     * MoCap reference time */
+    double seconds_since_mocap_ts(uint64_t us);
     /* Function that is used to spin up the publish thread */
     void publish_loop();
     void keystroke_loop();

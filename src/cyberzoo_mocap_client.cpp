@@ -72,7 +72,7 @@ CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
 {
     (void) other;
     std::cerr << "Copy constructor for CyberZooMocapClient not supported. Exiting." << std::endl;
-    exit(-1);
+    std::raise(SIGINT);
 }
 
 CyberZooMocapClient::CyberZooMocapClient()
@@ -138,14 +138,31 @@ void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables
     (void)vm;
 }
 
+double CyberZooMocapClient::seconds_since_mocap_ts(uint64_t us)
+{
+   return this->pClient->SecondsSinceHostTimestamp(us);
+}
+
 void CyberZooMocapClient::publish_loop()
 {
     bool run = true;
+    auto ts = std::chrono::steady_clock::now();
+    float sleep_time = this->publish_dt;
     while(run)
     {
         this->publish_data();
         using namespace std::chrono_literals;
-        std::this_thread::sleep_for(this->publish_dt * 1s);
+        std::this_thread::sleep_for(sleep_time * 1s);
+
+        /* We measure the duration of publish_data and adjust 
+         * the publish_dt based on that in a closed loop fashion
+         * in order to achieve the desired frequency */
+        auto ts_new = std::chrono::steady_clock::now();
+        std::chrono::duration<float> duration = ts_new - ts;
+
+        sleep_time += 0.25 * (this->publish_dt - duration.count()); 
+
+        ts = ts_new;
     }
 }
 
@@ -203,7 +220,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
 
     if (vm.count("help")) {
         std::cout << desc << "\n";
-        exit(1);
+        exit(0);
     }
 
     if (vm.count("publish_frequency")) {
@@ -249,7 +266,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         else
         {
             std::cout << "Coordinate system " << co_name << " not definied. Exiting" << std::endl;
-            exit(0);
+            std::raise(SIGINT);
         }
         
         std::cout << "Coordinate system set to " << this->co << std::endl;
@@ -285,9 +302,9 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         else
         {
             std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
-            exit(0);
+            std::raise(SIGINT);
         }
-        
+
         std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
 
     }
@@ -517,9 +534,9 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
                 break;
             case UpAxis::Z:
                 // Transform from X-Up to Y-Up
-                result.x = qx_copy;
-                result.y = qz_copy;
-                result.z = -qy_copy;
+                result.x = x_copy;
+                result.y = z_copy;
+                result.z = -y_copy;
 
                 result.qw = qw_copy;
                 result.qx = qx_copy;
@@ -529,7 +546,7 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
             case UpAxis::NOTDETECTED:
                 // The up axis is not known. Abort
                 std::cerr << "The up-axis is not detected. Aborting." << std::endl;
-                exit(1); 
+                std::raise(SIGINT);
                 break;    
             default:
                 break;

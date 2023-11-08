@@ -1,6 +1,3 @@
-# Define RCLCPP_LOG_MIN_SEVERITY=RCLCPP_LOG_MIN_SEVERITY_[DEBUG|INFO|WARN|ERROR|FATAL] in your build options to compile out anything below that severity. Use RCLCPP_LOG_MIN_SEVERITY_NONE to compile out all macros.
-add_compile_definitions(RCLCPP_LOG_MIN_SEVERITY=RCLCPP_LOG_MIN_SEVERITY_DEBUG)
-
 cmake_minimum_required(VERSION 3.14)
 
 # project and executables
@@ -8,7 +5,7 @@ project(optitrack_clients LANGUAGES CXX)
 # Define a cache variable as a string
 if(NOT DEFINED CLIENTS)
     message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "debug;ivy;udp" CACHE STRING "Clients to build into the binary")
+    set(CLIENTS "debug;ivy;udp;ros2" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
 add_executable(client src/main.cpp src/cyberzoo_mocap_client.cpp)
@@ -66,4 +63,12 @@ endif()
 
 if ("udp" IN_LIST CLIENTS)
     find_package(Boost REQUIRED COMPONENTS system)
+endif()
+
+if ("ros2" IN_LIST CLIENTS)
+    find_package(ament_cmake REQUIRED)
+    find_package(rclcpp REQUIRED)
+    find_package(geometry_msgs REQUIRED)
+
+    ament_target_dependencies(client rclcpp geometry_msgs)
 endif()
