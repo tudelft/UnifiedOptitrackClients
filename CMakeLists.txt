@@ -2,13 +2,16 @@ cmake_minimum_required(VERSION 3.14)
 
 # project and executables
 project(optitrack_clients LANGUAGES CXX)
-# Define a cache variable as a string
+
 if(NOT DEFINED CLIENTS)
     message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "debug;ivy;udp;ros2" CACHE STRING "Clients to build into the binary")
+    set(CLIENTS "debug;ivy;udp;log;ros2" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
 add_executable(client src/main.cpp src/cyberzoo_mocap_client.cpp)
+ADD_CUSTOM_TARGET(console_symlink ALL
+                  COMMAND ${CMAKE_COMMAND} -E create_symlink client natnet2console
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 foreach(x ${CLIENTS})
     string(TOUPPER ${x} uppercase)

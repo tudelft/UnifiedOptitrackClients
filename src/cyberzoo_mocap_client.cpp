@@ -115,6 +115,11 @@ CyberZooMocapClient::~CyberZooMocapClient()
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
+void CyberZooMocapClient::publish_data()
+{
+}
+
+// Non-action implementation of the virtual function to make the implementation optional
 void CyberZooMocapClient::pre_start()
 {
 }

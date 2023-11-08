@@ -10,7 +10,6 @@ class NatNet2Udp : public CyberZooMocapClient
 public:
     NatNet2Udp() : _socket{_io_service}
     {
-        this->_socket.open(ip::udp::v4());
     }
     ~NatNet2Udp()
     {
@@ -22,6 +21,7 @@ public:
         desc.add_options()
             ("client_ip,i", boost::program_options::value<std::string>(), "IP to stream the UDP data to.")
             ("port,p", boost::program_options::value<unsigned short int>(), "UDP Port.")
+            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>(), "ac id(s)")
         ;
     }
 
@@ -44,35 +44,53 @@ public:
             std::cout << "No UDP port given. Assume 5004" << std::endl;
             this->_port = 5004;
         }
+
+        if(vm.count("ac_id")) {
+            this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
+            if (this->_ac_id.size() != this->getStreamingIds().size()) {
+                std::cout << "Number of ac_ids and streaming_ids passed must be equal"
+                    << std::endl;
+                std::raise(SIGINT);
+            }
+            std::cout << "AC IDs set to";
+            for(unsigned int id : this->_ac_id) std::cout << " " << id << " ";
+            std::cout << std::endl;
+        } else {
+            std::cout << "As many ac_ids as streaming_ids required" << std::endl;
+            std::raise(SIGINT);
+        }
     }
 
     void pre_start() override
     {
         this->_remote_endpoint = ip::udp::endpoint(ip::address::from_string(this->_client_ip), this->_port);
+        this->_socket.open(ip::udp::v4());
     }
 
     void publish_data() override
     {
-        //for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        //{
-            //pose_t pose = this->getPoseRB(i);
-            //pose_der_t pose_der = this->getPoseDerRB(i);
-            pose_t pose {.x = 1};
-            pose_t pose_der {.y = 1};
-            boost::system::error_code err;
-            static constexpr size_t Np = sizeof(pose_t);
-            static constexpr size_t Nd = sizeof(pose_der_t);
-            uint8_t buf[Np+Nd];
-            memcpy(buf, &pose, Np);
-            memcpy(buf+Np, &pose_der, Nd);
+        static constexpr size_t Ni = sizeof(this->_ac_id[0]);
+        static constexpr size_t Np = sizeof(pose_t);
+        static constexpr size_t Nd = sizeof(pose_der_t);
 
-            auto sent = this->_socket.send_to(buffer(buf, Np+Nd), this->_remote_endpoint, 0, err);
+        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
+        {
+            pose_t pose = this->getPoseRB(i);
+            pose_der_t pose_der = this->getPoseDerRB(i);
+            uint8_t buf[Ni+Np+Nd];
+            memcpy(buf, &(this->_ac_id[i]), Ni);
+            memcpy(buf+Ni, &pose, Np);
+            memcpy(buf+Ni+Np, &pose_der, Nd);
+
+            boost::system::error_code err;
+            auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
             if (err.failed())
                 std::cout << "Failed with error " << err << std::endl;
-        //}
+        }
     }
 
 private:
+    std::vector<unsigned int> _ac_id;
     unsigned short int _port;
     std::string _client_ip;
     io_service _io_service;

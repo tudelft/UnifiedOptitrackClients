@@ -18,7 +18,6 @@ char getch();
 
 constexpr unsigned int MAX_TRACKED_RB = 10;
 
-
 enum CoordinateSystem { UNCHANGED=0, NED, ENU};
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
 enum LongEdge{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
@@ -27,7 +26,6 @@ class CyberZooMocapClient
 {
 private:
     float publish_dt;
-    std::vector<unsigned int> streaming_ids;
     CoordinateSystem co;
     LongEdge long_edge;
     NatNetClient* pClient;
@@ -62,9 +60,12 @@ private:
     std::thread keyThread;
 
     inline void togglePrintMessages() { printMessages ^= true; };
+    std::vector<unsigned int> streaming_ids;
 
 protected:
-   int trackRB(unsigned int id) {
+    unsigned int getStreamingId(unsigned int i) {return this->streaming_ids[i]; };
+    std::vector<unsigned int> getStreamingIds() {return this->streaming_ids; };
+    int trackRB(unsigned int id) {
         int i = this->getIndexRB(id);
         if (i > -1) { return i; } // already tracked, that's fine
         if (this->nTrackedRB >= MAX_TRACKED_RB) { return -1; } // cannot add, too many RBs
@@ -133,7 +134,7 @@ protected:
     virtual void add_extra_po(boost::program_options::options_description &desc);
     virtual void parse_extra_po(const boost::program_options::variables_map &vm);
     // Publishing functions
-    virtual void publish_data() = 0;
+    virtual void publish_data();
     
 
 public:

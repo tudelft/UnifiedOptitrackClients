@@ -26,7 +26,7 @@ public:
         // TODO: make this a list to correspond to rigid_body ids
         if (vm.count("ac_id"))
         {
-            int val = vm["ac_id"].as<int>();
+            int val = vm["ac_id"].as<unsigned int>();
             std::cout << "Aircraft Id set to "
                       << val << std::endl;
             this->_ac_id = val;
