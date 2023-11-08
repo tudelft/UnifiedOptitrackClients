@@ -2,6 +2,7 @@ Currently supported clients:
 - `debug`
 - `ivy`
 - `udp`
+- `ros2`
 
 Build all with:
 ```shell
