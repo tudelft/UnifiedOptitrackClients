@@ -79,50 +79,26 @@ CyberZooMocapClient::CyberZooMocapClient()
     : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{LongEdge::RIGHT}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, validRB{false}
 {
-
     // TODO: use builtin forward prediction with the latency estimates plus a 
     // user-defined interval (on the order of 10ms)?
 
     this->print_startup();
 
     // Initialize non-trivial arrays
-    for(unsigned int i = 0; i < MAX_TRACKED_RB; i++)
-    {
+    for(unsigned int i = 0; i < MAX_TRACKED_RB; i++) {
         this->validRB[i] = false;
         this->poseRB[i] = pose_t();
         this->poseDerRB[i] = pose_der_t(); 
     }
-
-    // instantiate client and make connection
-    this->pClient = new NatNetClient();
-    ErrorCode ret = this->connectAndDetectServerSettings();
-    if (ret != ErrorCode_OK) {
-        // returning from main is best for cleanup?
-        std::raise(SIGINT);
-        return;
-    }
-
-    // register callback
-    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
-    if (ret != ErrorCode_OK) {
-        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
-        return;
-    }
 }
 
-CyberZooMocapClient::~CyberZooMocapClient()
-{
-}
+CyberZooMocapClient::~CyberZooMocapClient() { }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::publish_data()
-{
-}
+void CyberZooMocapClient::publish_data() { }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::pre_start()
-{
-}
+void CyberZooMocapClient::pre_start() { }
 
 // Non-action implementation of the virtual function to make the implementation optional
 void CyberZooMocapClient::post_start()
@@ -193,6 +169,22 @@ void CyberZooMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
 
+    // instantiate client and make connection
+    this->pClient = new NatNetClient();
+    ErrorCode ret = this->connectAndDetectServerSettings();
+    if (ret != ErrorCode_OK) {
+        // returning from main is best for cleanup?
+        std::raise(SIGINT);
+        return;
+    }
+
+    // register callback
+    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
+    if (ret != ErrorCode_OK) {
+        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
+        return;
+    }
+
     // initialize filters for derivatives
     for (unsigned int i=0; i < MAX_TRACKED_RB; i++)
         derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
@@ -247,9 +239,8 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     }
     else
     {
-        std::cout << "Streaming IDs not set, defaulting to";
-        for(unsigned int id : this->streaming_ids) std::cout << " " << id << " ";
-        std::cout << std::endl;
+        std::cout << "Streaming IDs not set" <<std::endl;
+        exit(1);
     }
 
     if(vm.count("coordinate_system"))
@@ -257,25 +248,14 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         std::string co_name = vm["coordinate_system"].as<std::string>();
         boost::algorithm::to_lower(co_name);
 
-        if(co_name.compare("unchanged") == 0)
-        {
-            this->co = CoordinateSystem::UNCHANGED;
-        }
-        else if(co_name.compare("ned") == 0)
-        {
-            this->co = CoordinateSystem::NED;
-        }else if (co_name.compare("enu") == 0)
-        {
-            this->co = CoordinateSystem::ENU;
-        }
-        else
-        {
+        if(co_name.compare("unchanged") == 0) { this->co = CoordinateSystem::UNCHANGED; }
+        else if(co_name.compare("ned") == 0) { this->co = CoordinateSystem::NED; }
+        else if (co_name.compare("enu") == 0) { this->co = CoordinateSystem::ENU; }
+        else {
             std::cout << "Coordinate system " << co_name << " not definied. Exiting" << std::endl;
             std::raise(SIGINT);
         }
-        
         std::cout << "Coordinate system set to " << this->co << std::endl;
-
     }
     else
     {
@@ -288,30 +268,16 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         std::string le = vm["long_edge"].as<std::string>();
         boost::algorithm::to_lower(le);
 
-        if(le.compare("right") == 0)
-        {
-            this->long_edge = LongEdge::RIGHT;
-        }
-        else if(le.compare("far_side") == 0)
-        {
-            this->long_edge = LongEdge::FAR_SIDE;
-        }
-        else if (le.compare("left") == 0)
-        {
-            this->long_edge = LongEdge::LEFT;
-        }
-        else if (le.compare("near_side") == 0)
-        {
-            this->long_edge = LongEdge::NEAR_SIDE;
-        }
+        if(le.compare("right") == 0) { this->long_edge = LongEdge::RIGHT; }
+        else if(le.compare("far_side") == 0) { this->long_edge = LongEdge::FAR_SIDE; }
+        else if (le.compare("left") == 0) { this->long_edge = LongEdge::LEFT; }
+        else if (le.compare("near_side") == 0) { this->long_edge = LongEdge::NEAR_SIDE; }
         else
         {
             std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
             std::raise(SIGINT);
         }
-
         std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
-
     }
     else
     {
@@ -442,14 +408,13 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     if (ret == ErrorCode_OK) {
         std::cout<<"Successful!"<<std::endl;
     } else {
-#ifdef USE_DISCOVERY
         std::cout<<"Failed with unknown error code "<< ret <<std::endl;
-#else
+/*
         std::cout<<"Failed with error code "<< ret <<std::endl;
         std::cout<<std::endl<<"Troubleshooting: " << std::endl;
         std::cout<<"1. Verify connected to Motive network" << std::endl;
         std::cout<<"2. Verify that 'interface' is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
-#endif
+*/
         return ret;
     }
 
