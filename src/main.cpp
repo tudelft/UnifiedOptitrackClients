@@ -35,14 +35,6 @@ int main(int argc, char const *argv[])
     boost::filesystem::path p(argv[0]);
     std::cout << "    ## Using client " << p.filename() << std::endl;
 
-    std::cout << "Attempting to start client " << p.filename() << std::endl;
-
-    if (p.filename() == "natnet2console") {
-        CyberZooMocapClient client = CyberZooMocapClient(); client.start(argc, argv);
-    } else
-
-    std::cout << "Attempting to start client " << p.filename() << std::endl;
-
     if (p.filename() == "natnet2console") {
         CyberZooMocapClient client = CyberZooMocapClient(); client.start(argc, argv);
     } else
