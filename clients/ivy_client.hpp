@@ -16,7 +16,7 @@ public:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         desc.add_options()
-            ("ac_id,ac", boost::program_options::value<unsigned int>(), "Aircraft Id to forward IVY messages to.")
+            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>()->multitoken(), "Aircraft Id to forward IVY messages to.")
             ("broadcast_address,b", boost::program_options::value<std::string>(), "Ivy broadcast ip address.")
         ;
     }
@@ -26,10 +26,15 @@ public:
         // TODO: make this a list to correspond to rigid_body ids
         if (vm.count("ac_id"))
         {
-            int val = vm["ac_id"].as<int>();
-            std::cout << "Aircraft Id set to "
-                      << val << std::endl;
-            this->_ac_id = val;
+            this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
+            if (this->_ac_id.size() != this->getStreamingIds().size()) {
+                std::cout << "Number of ac_ids and streaming_ids passed must be equal"
+                    << std::endl;
+                std::raise(SIGINT);
+            }
+            std::cout << "AC IDs set to";
+            for(unsigned int id : this->_ac_id) std::cout << " " << id << " ";
+            std::cout << std::endl;
         } else {
             std::cout << "No aircraft id passed, but is required." << std::endl;
             std::raise(SIGINT);
@@ -65,7 +70,7 @@ public:
             pose_t pose = this->getPoseRB(i);
             pose_der_t pose_der = this->getPoseDerRB(i);
             IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
-                _ac_id, pose.timeUs/1000,  //todo: probably not the right timestamp
+                _ac_id[i], pose.timeUs/1000,  //todo: probably not the right timestamp
                 pose.x, pose.y, pose.z,
                 pose_der.x, pose_der.y, pose_der.z,
                 pose.qw, pose.qx, pose.qy, pose.qz);
@@ -73,6 +78,6 @@ public:
     }
 
 private:
-    uint8_t _ac_id;
+    std::vector<unsigned int> _ac_id;
     std::string bip;
 };

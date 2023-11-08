@@ -14,6 +14,10 @@
     #include "udp_client.hpp"
 #endif
 
+#ifdef USE_CLIENT_LOG
+    #include "log_client.hpp"
+#endif
+
 #ifdef USE_CLIENT_ROS2
     #include "ros2_client.hpp"
     #include "rclcpp/rclcpp.hpp"
@@ -29,29 +33,35 @@
 int main(int argc, char const *argv[])
 {
     boost::filesystem::path p(argv[0]);
+    std::cout << "    ## Using client " << p.filename() << std::endl;
+
+    std::cout << "Attempting to start client " << p.filename() << std::endl;
+
+    if (p.filename() == "natnet2console") {
+        CyberZooMocapClient client = CyberZooMocapClient(); client.start(argc, argv);
+    } else
 
 #ifdef USE_CLIENT_DEBUG
     if (p.filename() == "natnet2debug") {
-
-        DebugImpl client = DebugImpl();
-        std::cout << "    ## Using client " << p.filename() << std::endl;
-        client.start(argc, argv);
-    } else
-#endif
-#ifdef USE_CLIENT_IVY
-    if (p.filename() == "natnet2ivy") {
-        std::cout << "    ## Using client " << p.filename() << std::endl;
-
-        NatNet2Ivy client = NatNet2Ivy();
-        client.start(argc, argv);
+        NatNet2Debug client = NatNet2Debug(); client.start(argc, argv);
     } else 
 #endif
+
+#ifdef USE_CLIENT_IVY
+    if (p.filename() == "natnet2ivy") {
+        NatNet2Ivy client = NatNet2Ivy(); client.start(argc, argv);
+    } else 
+#endif
+
 #ifdef USE_CLIENT_UDP
     if (p.filename() == "natnet2udp") {
-        std::cout << "    ## Using client " << p.filename() << std::endl;
+        NatNet2Udp client = NatNet2Udp(); client.start(argc, argv);
+    } else 
+#endif
 
-        NatNet2Udp client = NatNet2Udp();
-        client.start(argc, argv);
+#ifdef USE_CLIENT_LOG
+    if (p.filename() == "natnet2log") {
+        NatNet2Log client = NatNet2Log(); client.start(argc, argv);
     } else 
 #endif
 
@@ -60,8 +70,6 @@ int main(int argc, char const *argv[])
 	signal(SIGINT, h_sig_sigint);
 
     if (p.filename() == "natnet2ros2") {
-        std::cout << "    ## Using client " << p.filename() << std::endl;
-        
         // Init ROS2
         rclcpp::init(argc, argv);
 
