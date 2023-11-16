@@ -14,7 +14,7 @@
     #include "udp_client.hpp"
 #endif
 
-#ifdef USE_CLIENT_ROS2
+#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
     #include "ros2_client.hpp"
     #include "rclcpp/rclcpp.hpp"
     void
@@ -25,6 +25,7 @@
         exit(0);
     }
 #endif
+
 
 int main(int argc, char const *argv[])
 {
@@ -55,7 +56,7 @@ int main(int argc, char const *argv[])
     } else 
 #endif
 
-#ifdef USE_CLIENT_ROS2
+#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
     
 	signal(SIGINT, h_sig_sigint);
 
@@ -73,9 +74,22 @@ int main(int argc, char const *argv[])
 
         // Start the thread
         client.start(argc, argv);
-    } else 
-#endif
+    } else if(p.filename() == "natnet2ros2px4") {
+        std::cout << "    ## Using client " << p.filename() << std::endl;
+        
+        // Init ROS2
+        rclcpp::init(argc, argv);
 
+        // Disable Default logger
+        rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
+
+        // Init Client
+        NatNet2Ros2 client = NatNet2Ros2();
+
+        // Start the thread
+        client.start(argc, argv); 
+    }
+#endif
     {
         std::cout << "Support for client " << p.filename() << "was not compiled into the program." << std::endl;
         return 1;
