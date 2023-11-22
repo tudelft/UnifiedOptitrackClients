@@ -5,7 +5,7 @@ project(optitrack_clients LANGUAGES CXX)
 # Define a cache variable as a string
 if(NOT DEFINED CLIENTS)
     message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "debug;ivy;udp;ros2" CACHE STRING "Clients to build into the binary")
+    set(CLIENTS "debug;ivy;udp;ros2px4" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
 add_executable(client src/main.cpp src/cyberzoo_mocap_client.cpp)
