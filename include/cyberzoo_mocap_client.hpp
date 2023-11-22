@@ -120,6 +120,11 @@ protected:
         return pose_der;
     };
 
+    CoordinateSystem getCO()
+    {
+        return this->co;
+    }
+
     /* Returns the seconds since the a timestamp in
      * MoCap reference time */
     double seconds_since_mocap_ts(uint64_t us);

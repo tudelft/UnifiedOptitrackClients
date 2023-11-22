@@ -93,6 +93,9 @@ public:
 
     void publish_data() override
     {
+        // Copy the streaming ids
+        std::vector<unsigned int> streaming_ids = this->get_streaming_ids();
+
         for(unsigned int i = 0; i < this->_publishers.size(); i++)
         {   
             // Only publish messages if the current value is valid
@@ -108,7 +111,8 @@ public:
                 double seconds = this->seconds_since_mocap_ts(pose.timeUs);
                 uint32_t seconds_t = static_cast<int32_t>(seconds);
                 uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
-                msg.header.stamp = (this->now() - rclcpp::Duration(seconds_t, nanoseconds_t));
+                rclcpp::Time stamp = (this->now() - rclcpp::Duration(seconds_t, nanoseconds_t));
+                msg.header.stamp = stamp;
 
                 // Init Frame ID
                 msg.header.frame_id = "world";
@@ -123,10 +127,41 @@ public:
                 msg.pose.orientation.y = pose.qy;
                 msg.pose.orientation.z = pose.qz;
 
+                #ifdef USE_CLIENT_ROS2PX4
+                /* If the current object is also in the list of ids
+                 * that should be published on a px4 topic */
+                if(std::find(this->_px4_streaming_ids.begin(),
+                             this->_px4_streaming_ids.end(),
+                             streaming_ids.at(i)) != this->_px4_streaming_ids.end())
+                {
+                    px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
+
+                    // Timestamp since system start (px4) in microseconds
+                    px4_vehicle_odometry.timestamp = this->_timestamp_remote + (stamp - this->_timestamp_local).nanoseconds() * 1e-3;
+                    px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
+
+                    // Frame definition
+                    px4_vehicle_odometry.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_NED;
+
+                    // Pose
+                    /* First transform to NED */
+                    pose = this->toNED(pose);
+
+                    /* Then store */
+                    px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
+                    px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
+
+                    // Publish
+                    this->_px4_publisher->publish(px4_vehicle_odometry);
+                }
+                #endif
+
                 // Finally publish
                 this->_publishers.at(i)->publish(msg);
             }
         }
+
+
       
     }
 
@@ -139,15 +174,41 @@ private:
     rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr _px4_publisher;
 
     std::atomic<uint64_t> _timestamp_remote;
-    std::chrono::time_point<std::chrono::steady_clock> _timestamp_local;
+    rclcpp::Time _timestamp_local;
 
     std::vector<unsigned int> _px4_streaming_ids;
 
     //Callback function
     void _timesync_callback(const px4_msgs::msg::TimesyncStatus::SharedPtr msg)
     {
-        this->_timestamp_local = std::chrono::steady_clock::now();
+        this->_timestamp_local = this->now();
         this->_timestamp_remote.store(msg->timestamp);
+    }
+
+    pose_t toNED(const pose_t pose)
+    {
+        pose_t result;
+
+        switch(this->getCO())
+        {
+            case CoordinateSystem::ENU:
+                result.x = pose.y;
+                result.y = pose.x;
+                result.z = -pose.z;
+
+                result.qw = pose.qw;
+                result.qx = pose.qy;
+                result.qy = pose.qx;
+                result.qz = -pose.qz;
+                break;
+            case CoordinateSystem::NED:
+                // We do nothing because this is what we want to have
+                break;
+            default:
+                break;
+        }
+
+        return result;
     }
 
 #endif
