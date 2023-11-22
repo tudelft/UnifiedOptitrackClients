@@ -4,6 +4,7 @@
 #include "cyberzoo_mocap_client.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 #include "std_msgs/msg/string.hpp"
 
 #ifdef USE_CLIENT_ROS2PX4
@@ -82,7 +83,8 @@ public:
 
         for(unsigned int i = 0; i < this->_topics.size(); i++)
         {
-            this->_publishers.push_back(this->create_publisher<geometry_msgs::msg::PoseStamped>(this->_topics.at(i).c_str(), 10));
+            this->_pose_publishers.push_back(this->create_publisher<geometry_msgs::msg::PoseStamped>(this->_topics.at(i).append("/pose/").c_str(), 10));
+            this->_twist_publishers.push_back(this->create_publisher<geometry_msgs::msg::TwistStamped>(this->_topics.at(i).append("/twist/").c_str(), 10));
         } 
 
 #ifdef USE_CLIENT_ROS2PX4
@@ -96,36 +98,48 @@ public:
         // Copy the streaming ids
         std::vector<unsigned int> streaming_ids = this->get_streaming_ids();
 
-        for(unsigned int i = 0; i < this->_publishers.size(); i++)
+        for(unsigned int i = 0; i < this->_pose_publishers.size(); i++)
         {   
             // Only publish messages if the current value is valid
             if(this->getValidRB(i))
             {
-                // Get the current pose
+                // Get the current pose and twist
                 pose_t pose = this->getPoseRB(i);
+                pose_der_t twist = this->getPoseDerRB(i);
 
                 // Init Message
-                geometry_msgs::msg::PoseStamped msg{};
+                geometry_msgs::msg::PoseStamped pose_msg{};
+                geometry_msgs::msg::TwistStamped twist_msg{};
                 
                 // Transform the pose timestamp to unix time
                 double seconds = this->seconds_since_mocap_ts(pose.timeUs);
                 uint32_t seconds_t = static_cast<int32_t>(seconds);
                 uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
                 rclcpp::Time stamp = (this->now() - rclcpp::Duration(seconds_t, nanoseconds_t));
-                msg.header.stamp = stamp;
+                pose_msg.header.stamp = stamp;
+                twist_msg.header.stamp = stamp;
 
                 // Init Frame ID
-                msg.header.frame_id = "world";
+                pose_msg.header.frame_id = "world";
+                twist_msg.header.frame_id = "world";
 
                 // Save in message
-                msg.pose.position.x = pose.x;
-                msg.pose.position.y = pose.y;
-                msg.pose.position.z = pose.z;
+                pose_msg.pose.position.x = pose.x;
+                pose_msg.pose.position.y = pose.y;
+                pose_msg.pose.position.z = pose.z;
 
-                msg.pose.orientation.w = pose.qw;
-                msg.pose.orientation.x = pose.qx;
-                msg.pose.orientation.y = pose.qy;
-                msg.pose.orientation.z = pose.qz;
+                pose_msg.pose.orientation.w = pose.qw;
+                pose_msg.pose.orientation.x = pose.qx;
+                pose_msg.pose.orientation.y = pose.qy;
+                pose_msg.pose.orientation.z = pose.qz;
+
+                twist_msg.twist.linear.x = twist.x;
+                twist_msg.twist.linear.y = twist.y;
+                twist_msg.twist.linear.z = twist.z;
+                
+                twist_msg.twist.angular.x = twist.wx;
+                twist_msg.twist.angular.y = twist.wy;
+                twist_msg.twist.angular.z = twist.wz;
 
                 #ifdef USE_CLIENT_ROS2PX4
                 /* If the current object is also in the list of ids
@@ -143,13 +157,16 @@ public:
                     // Frame definition
                     px4_vehicle_odometry.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_NED;
 
-                    // Pose
+                    // Pose and Twist
                     /* First transform to NED */
                     pose = this->toNED(pose);
+                    twist = this->toNED(twist);
 
                     /* Then store */
                     px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
                     px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
+                    px4_vehicle_odometry.velocity = {twist.x, twist.y, twist.z};
+                    px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
 
                     // Publish
                     this->_px4_publisher->publish(px4_vehicle_odometry);
@@ -157,7 +174,8 @@ public:
                 #endif
 
                 // Finally publish
-                this->_publishers.at(i)->publish(msg);
+                this->_pose_publishers.at(i)->publish(pose_msg);
+                this->_twist_publishers.at(i)->publish(twist_msg);
             }
         }
 
@@ -167,7 +185,8 @@ public:
 
 private:
     std::vector<std::string> _topics;
-    std::vector<rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr> _publishers;
+    std::vector<rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr> _pose_publishers;
+    std::vector<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr> _twist_publishers;
 
 #ifdef USE_CLIENT_ROS2PX4
     rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr _timesync_sub;
@@ -200,6 +219,31 @@ private:
                 result.qx = pose.qy;
                 result.qy = pose.qx;
                 result.qz = -pose.qz;
+                break;
+            case CoordinateSystem::NED:
+                // We do nothing because this is what we want to have
+                break;
+            default:
+                break;
+        }
+
+        return result;
+    }
+
+    pose_der_t toNED(const pose_der_t pose_der)
+    {
+        pose_der_t result;
+
+        switch(this->getCO())
+        {
+            case CoordinateSystem::ENU:
+                result.x = pose_der.y;
+                result.y = pose_der.x;
+                result.z = -pose_der.z;
+
+                result.wx = pose_der.wy;
+                result.wy = pose_der.wx;
+                result.wz = -pose_der.wz;
                 break;
             case CoordinateSystem::NED:
                 // We do nothing because this is what we want to have
