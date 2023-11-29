@@ -61,6 +61,7 @@ public:
             std::raise(SIGINT);
         }
 
+        /*
         if(vm.count("ac_id")) {
             this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
             if (this->_ac_id.size() != this->getStreamingIds().size()) {
@@ -75,6 +76,7 @@ public:
             std::cout << "As many ac_ids as streaming_ids required" << std::endl;
             std::raise(SIGINT);
         }
+        */
     }
 
     void pre_start() override

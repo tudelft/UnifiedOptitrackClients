@@ -77,7 +77,7 @@ CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
 
 CyberZooMocapClient::CyberZooMocapClient()
     : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{LongEdge::RIGHT}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
-    nTrackedRB{0}, validRB{false}
+    nTrackedRB{0}, validRB{false}, testMode{false}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
     // user-defined interval (on the order of 10ms)?
@@ -126,13 +126,35 @@ double CyberZooMocapClient::seconds_since_mocap_ts(uint64_t us)
 
 void CyberZooMocapClient::publish_loop()
 {
+    using namespace std::chrono_literals;
     bool run = true;
     auto ts = std::chrono::steady_clock::now();
     float sleep_time = this->publish_dt;
+
     while(run)
     {
+        if (this->testMode)
+        {
+            sFrameOfMocapData fakeData;
+            const auto microsecondsSinceEpoch = std::chrono::time_point_cast<std::chrono::microseconds>(ts).time_since_epoch().count();
+            fakeData.CameraMidExposureTimestamp = microsecondsSinceEpoch;
+            fakeData.nRigidBodies = 1;
+            fakeData.RigidBodies[0].ID = this->get_streaming_ids()[0];
+            fakeData.RigidBodies[0].MeanError = 0.001;
+            fakeData.RigidBodies[0].qw = 1.;
+            fakeData.RigidBodies[0].qx = 0.;
+            fakeData.RigidBodies[0].qy = 0.;
+            fakeData.RigidBodies[0].qz = 0.;
+            fakeData.RigidBodies[0].x = 1.;
+            fakeData.RigidBodies[0].y = 2.;
+            fakeData.RigidBodies[0].z = 3.;
+            fakeData.RigidBodies[0].params = 0x01; // valid
+            this->natnet_data_handler(&fakeData);
+        }
+
+        // TODO: do not publish if no new data!
+
         this->publish_data();
-        using namespace std::chrono_literals;
         std::this_thread::sleep_for(sleep_time * 1s);
 
         /* We measure the duration of publish_data and adjust 
@@ -170,19 +192,22 @@ void CyberZooMocapClient::start(int argc, const char *argv[])
     this->read_po(argc, argv);
 
     // instantiate client and make connection
-    this->pClient = new NatNetClient();
-    ErrorCode ret = this->connectAndDetectServerSettings();
-    if (ret != ErrorCode_OK) {
-        // returning from main is best for cleanup?
-        std::raise(SIGINT);
-        return;
-    }
+    if (!(this->testMode))
+    {
+        this->pClient = new NatNetClient();
+        ErrorCode ret = this->connectAndDetectServerSettings();
+        if (ret != ErrorCode_OK) {
+            // returning from main is best for cleanup?
+            std::raise(SIGINT);
+            return;
+        }
 
-    // register callback
-    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
-    if (ret != ErrorCode_OK) {
-        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
-        return;
+        // register callback
+        ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
+        if (ret != ErrorCode_OK) {
+            std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
+            return;
+        }
     }
 
     // initialize filters for derivatives
@@ -206,6 +231,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         ("streaming_ids,s", po::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to track")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
         ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration[right, far_side, left, near_side]")
+        ("test", "Send test data instead")
     ;
 
     // Adding any extra program options from the sub-class
@@ -283,6 +309,15 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     {
         std::cout << "Long Edge direction not set, defaulting to "
                   << this->long_edge << std::endl;
+    }
+
+    if(vm.count("test"))
+    {
+        std::cout << "Sending test data instead of attempting Motive Connect" << std::endl;
+        this->testMode = true;
+        this->upAxis = UpAxis::Y;
+        this->fSample = 100;
+        this->serverConfig.HighResClockFrequency = 1e6;
     }
 
     // process streaming ids
