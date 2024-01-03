@@ -83,8 +83,8 @@ public:
 
         for(unsigned int i = 0; i < this->_topics.size(); i++)
         {
-            this->_pose_publishers.push_back(this->create_publisher<geometry_msgs::msg::PoseStamped>(this->_topics.at(i).append("/pose").c_str(), 10));
-            this->_twist_publishers.push_back(this->create_publisher<geometry_msgs::msg::TwistStamped>(this->_topics.at(i).append("/twist").c_str(), 10));
+            this->_pose_publishers.push_back(this->create_publisher<geometry_msgs::msg::PoseStamped>((this->_topics.at(i) + ("/pose")).c_str(), 10));
+            this->_twist_publishers.push_back(this->create_publisher<geometry_msgs::msg::TwistStamped>((this->_topics.at(i) + ("/twist")).c_str(), 10));
         } 
 
 #ifdef USE_CLIENT_ROS2PX4
@@ -115,7 +115,7 @@ public:
                 double seconds = this->seconds_since_mocap_ts(pose.timeUs);
                 uint32_t seconds_t = static_cast<int32_t>(seconds);
                 uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
-                rclcpp::Time stamp = (this->now() - rclcpp::Duration(seconds_t, nanoseconds_t));
+                rclcpp::Time stamp = (rclcpp::Clock(RCL_SYSTEM_TIME).now() - rclcpp::Duration(seconds_t, nanoseconds_t));
                 pose_msg.header.stamp = stamp;
                 twist_msg.header.stamp = stamp;
 
@@ -200,13 +200,13 @@ private:
     //Callback function
     void _timesync_callback(const px4_msgs::msg::TimesyncStatus::SharedPtr msg)
     {
-        this->_timestamp_local = this->now();
+        this->_timestamp_local = rclcpp::Clock(RCL_SYSTEM_TIME).now();
         this->_timestamp_remote.store(msg->timestamp);
     }
 
-    pose_t toNED(const pose_t pose)
+    pose_t toNED(const pose_t pose) const
     {
-        pose_t result;
+        pose_t result = pose;
 
         switch(this->getCO())
         {
@@ -230,9 +230,9 @@ private:
         return result;
     }
 
-    pose_der_t toNED(const pose_der_t pose_der)
+    pose_der_t toNED(const pose_der_t pose_der) const
     {
-        pose_der_t result;
+        pose_der_t result = pose_der;
 
         switch(this->getCO())
         {
