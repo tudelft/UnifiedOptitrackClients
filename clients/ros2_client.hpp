@@ -83,8 +83,8 @@ public:
 
         for(unsigned int i = 0; i < this->_topics.size(); i++)
         {
-            this->_pose_publishers.push_back(this->create_publisher<geometry_msgs::msg::PoseStamped>(this->_topics.at(i).append("/pose/").c_str(), 10));
-            this->_twist_publishers.push_back(this->create_publisher<geometry_msgs::msg::TwistStamped>(this->_topics.at(i).append("/twist/").c_str(), 10));
+            this->_pose_publishers.push_back(this->create_publisher<geometry_msgs::msg::PoseStamped>(this->_topics.at(i).append("/pose").c_str(), 10));
+            this->_twist_publishers.push_back(this->create_publisher<geometry_msgs::msg::TwistStamped>(this->_topics.at(i).append("/twist").c_str(), 10));
         } 
 
 #ifdef USE_CLIENT_ROS2PX4
