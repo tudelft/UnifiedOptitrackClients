@@ -21,19 +21,31 @@
 #if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
     #include "ros2_client.hpp"
     #include "rclcpp/rclcpp.hpp"
-    void
-    h_sig_sigint( int signum )
-    {
-        std::cout << "Shutting down... Done. " << std::endl;
-        rclcpp::shutdown();
-        exit(0);
-    }
 #endif
 
+namespace{
+    std::function<void(int)> shutdown_handler;
+    void signal_handler(int signal) { shutdown_handler(signal); }
+}
 
 int main(int argc, char const *argv[])
 {
     boost::filesystem::path p(argv[0]);
+
+    shutdown_handler = [p](int signum) 
+    { 
+        std::cout << "Shutting down... Done. " << std::endl;
+#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)  
+        if (p.filename() == "natnet2ros2"
+            || p.filename() == "natnet2ros2px4")
+        {
+            rclcpp::shutdown();
+        }
+#endif
+         exit(0);
+    };
+
+	signal(SIGINT, signal_handler);
 
     std::cout << "Attempting to start client " << p.filename() << std::endl;
 
@@ -66,8 +78,6 @@ int main(int argc, char const *argv[])
 #endif
 
 #if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
-    
-	signal(SIGINT, h_sig_sigint);
 
     if (p.filename() == "natnet2ros2" || p.filename() == "natnet2ros2px4") {
         // Init ROS2
