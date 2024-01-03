@@ -93,21 +93,6 @@ CyberZooMocapClient::CyberZooMocapClient()
         this->poseDerRB[i] = pose_der_t(); 
     }
 
-    // instantiate client and make connection
-    this->pClient = new NatNetClient();
-    ErrorCode ret = this->connectAndDetectServerSettings();
-    if (ret != ErrorCode_OK) {
-        // returning from main is best for cleanup?
-        std::raise(SIGINT);
-        return;
-    }
-
-    // register callback
-    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
-    if (ret != ErrorCode_OK) {
-        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
-        return;
-    }
 }
 
 CyberZooMocapClient::~CyberZooMocapClient()
@@ -192,6 +177,24 @@ void CyberZooMocapClient::keystroke_loop()
 void CyberZooMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
+ 
+    // instantiate client and make connection
+    this->pClient = new NatNetClient();
+    ErrorCode ret = this->connectAndDetectServerSettings();
+    if (ret != ErrorCode_OK) {
+        // returning from main is best for cleanup?
+        std::raise(SIGINT);
+        return;
+    }
+
+    // register callback
+    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
+    if (ret != ErrorCode_OK) {
+        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
+        return;
+    }
+
+    this->print_coordinate_system();
 
     // initialize filters for derivatives
     for (unsigned int i=0; i < MAX_TRACKED_RB; i++)
@@ -354,9 +357,109 @@ void CyberZooMocapClient::print_coordinate_system() const
      │        ⊙ ⊙               │
      │       ⊙ + ⊙              │
      │        ⊙ ⊙               │
-left │                          │ right
+left │                          │ right )";
+
+    // There's probably a better way to do this but I can't think
+    // of it. So a bunch of nested switch-case statements it is.
+    
+    // If the upAxis is not detected the CO is not well defined
+    // and we can't draw the coordinate system
+    if(this->upAxis == UpAxis::NOTDETECTED)
+    {
+        std::cout << R"(
+     │ UpAxis could not be      │
+     │ detected. CO not well    │ 
+     │ defined. Use a newer     │ 
+     │ version of motive.       │)" << std::endl;
+        return;
+    }
+    switch(this->co)
+    {
+        case CoordinateSystem::UNCHANGED:
+            switch(this->upAxis)
+            {
+                case UpAxis::X:
+                    std::cout << R"( 
+     │      ↑                   │
+     │    x ⊙ →                 │
+     │    y-z Unchanged         │)";
+                    break;
+                case UpAxis::Y:
+                    std::cout << R"( 
+     │      ↑                   │
+     │    y ⊙ →                 │
+     │    x-z Unchanged         │)";
+                    break;
+                case UpAxis::Z:
+                    std::cout << R"( 
+     │      ↑                   │
+     │    z ⊙ →                 │
+     │    y-z Unchanged         │)";
+                    break;
+            }
+            break;
+        case CoordinateSystem::NED:
+            switch (this->long_edge)
+            {
+                case LongEdge::RIGHT:
+                    std::cout << R"( 
      │                          │
+     │   z  ⓧ → x              │
+     │    y ↓                   │)";
+                    break;
+                case LongEdge::FAR_SIDE:
+                    std::cout << R"( 
+     │    x ↑                   │
+     │   z  ⓧ → y              │
+     │                          │)";
+                    break;
+                case LongEdge::LEFT:
+                    std::cout << R"( 
+     │    y ↑                   │
+     │  x ← ⓧ z                │
+     │                          │)";
+                    break;
+                case LongEdge::NEAR_SIDE:
+                    std::cout << R"( 
      │                          │
+     │  y ← ⓧ z                │
+     │    x ↓                   │)";
+                    break;
+            }
+            break;
+        case CoordinateSystem::ENU:
+            switch (this->long_edge)
+            {
+                case LongEdge::RIGHT:
+                    std::cout << R"( 
+     │    y ↑                   │
+     │   z  ⊙ → x               │
+     │                          │)";
+                    break;
+                case LongEdge::FAR_SIDE:
+                    std::cout << R"( 
+     │    x ↑                   │
+     │  y ← ⊙ z                 │
+     │                          │)";
+                    break;
+                case LongEdge::LEFT:
+                    std::cout << R"( 
+     │                          │
+     │  x ← ⊙ z                 │
+     │    y ↓                   │)";
+                    break;
+                case LongEdge::NEAR_SIDE:
+                    std::cout << R"( 
+     │                          │
+     │   z  ⊙ → y               │
+     │    x ↓                   │)";
+                    break;
+            }
+            break;
+
+    }
+    
+    std::cout<<R"(
      │                          │
      +──────────────────────────+
      │    Observers  (near)     │
