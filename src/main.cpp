@@ -69,7 +69,7 @@ int main(int argc, char const *argv[])
     
 	signal(SIGINT, h_sig_sigint);
 
-    if (p.filename() == "natnet2ros2") {
+    if (p.filename() == "natnet2ros2" || p.filename() == "natnet2ros2px4") {
         // Init ROS2
         rclcpp::init(argc, argv);
 
@@ -81,19 +81,6 @@ int main(int argc, char const *argv[])
 
         // Start the thread
         client.start(argc, argv);
-    } else if(p.filename() == "natnet2ros2px4") {
-        
-        // Init ROS2
-        rclcpp::init(argc, argv);
-
-        // Disable Default logger
-        rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
-
-        // Init Client
-        NatNet2Ros2 client = NatNet2Ros2();
-
-        // Start the thread
-        client.start(argc, argv); 
     }
 #endif
     {
