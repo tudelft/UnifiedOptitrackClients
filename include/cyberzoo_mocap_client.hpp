@@ -120,7 +120,7 @@ protected:
         return pose_der;
     };
 
-    CoordinateSystem getCO()
+    CoordinateSystem getCO() const
     {
         return this->co;
     }
