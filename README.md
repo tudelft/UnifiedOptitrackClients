@@ -26,11 +26,11 @@ cmake -D'CLIENTS=debug;ivy;ros2;ros2px4' .. && make
 
 Prerequisites vary per client. Currently, these are known:
 
-|   Client  | Known Prerequisites                                    |
-|:---------:|--------------------------------------------------------|
-| `ivy`     | `ivy-c-dev`                                            |
-| `ros2`    | `ros-humble-base`, needs to be sourced for compilation |
-| `ros2px4` | As above                                               |
+|   Client  | Known Prerequisites                                                                      |
+|:---------:|------------------------------------------------------------------------------------------|
+| `ivy`     | `ivy-c-dev`                                                                              |
+| `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
+| `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
 
 ## How to write your own client?
 
