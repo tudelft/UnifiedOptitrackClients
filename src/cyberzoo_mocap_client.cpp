@@ -173,7 +173,11 @@ void CyberZooMocapClient::publish_loop()
 void CyberZooMocapClient::keystroke_loop()
 {
     // wait for keystrokes
-    std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+    if (this->testMode)
+        std::cout << std::endl << "Faking messages in test mode! Press q to quit, Press t to toggle message printing" << std::endl;
+    else
+        std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+
 	while ( const int c = getch() )
     {
         switch(c)
