@@ -18,22 +18,34 @@
     #include "log_client.hpp"
 #endif
 
-#ifdef USE_CLIENT_ROS2
+#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
     #include "ros2_client.hpp"
     #include "rclcpp/rclcpp.hpp"
-    void
-    h_sig_sigint( int signum )
-    {
-        std::cout << "Shutting down... Done. " << std::endl;
-        rclcpp::shutdown();
-        exit(0);
-    }
 #endif
+
+namespace{
+    std::function<void(int)> shutdown_handler;
+    void signal_handler(int signal) { shutdown_handler(signal); }
+}
 
 int main(int argc, char const *argv[])
 {
     boost::filesystem::path p(argv[0]);
-    std::cout << "    ## Using client " << p.filename() << std::endl;
+
+    shutdown_handler = [p](int signum) 
+    { 
+        std::cout << "Shutting down... Done. " << std::endl;
+#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)  
+        if (p.filename() == "natnet2ros2"
+            || p.filename() == "natnet2ros2px4")
+        {
+            rclcpp::shutdown();
+        }
+#endif
+         exit(0);
+    };
+
+	signal(SIGINT, signal_handler);
 
     if (p.filename() == "natnet2console") {
         CyberZooMocapClient client = CyberZooMocapClient(); client.start(argc, argv);
@@ -62,11 +74,9 @@ int main(int argc, char const *argv[])
     } else 
 #endif
 
-#ifdef USE_CLIENT_ROS2
-    
-	signal(SIGINT, h_sig_sigint);
+#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
 
-    if (p.filename() == "natnet2ros2") {
+    if (p.filename() == "natnet2ros2" || p.filename() == "natnet2ros2px4") {
         // Init ROS2
         rclcpp::init(argc, argv);
 
@@ -78,9 +88,8 @@ int main(int argc, char const *argv[])
 
         // Start the thread
         client.start(argc, argv);
-    } else 
+    }
 #endif
-
     {
         std::cout << "Support for client " << p.filename() << "was not compiled into the program." << std::endl;
         return 1;
