@@ -846,6 +846,10 @@ void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
     // get timestamp
     uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency * 1e-6);
 
+    // reset validRB message to false, we will set to true if indeed contained in frame
+    for (unsigned int idx = 0; idx < this->getNTrackedRB(); idx++)
+        validRB[idx] = false;
+
     // loop over bodies in frame and process the ones we listen to
     bool printedHeader = false;
 	for(int i=0; i < data->nRigidBodies; i++) {
