@@ -40,7 +40,7 @@ target_link_libraries(client ${Boost_LIBRARIES})
 
 include(FetchContent)
 fetchcontent_declare(natnet_sdk_content
-  URL https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.0_ubuntu.tar
+  URL https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.1_ubuntu.tar
 )
 fetchcontent_makeavailable(natnet_sdk_content)
 
