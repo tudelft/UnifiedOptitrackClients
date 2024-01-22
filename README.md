@@ -34,7 +34,7 @@ Prerequisites vary per client. Currently, these are known:
 
 ## How to write your own client?
 
-To write your own client it has to inheret from the base class `CyberZooMocapClient` defined in `cyberzoo_mocap_client.hpp` and needs to implement the 
+To write your own client it has to inheret from the base class `UnifiedMocapClient` defined in `unified_mocap_client.hpp` and needs to implement the 
 
     void publish_data()
 function. It _can_ also implement 

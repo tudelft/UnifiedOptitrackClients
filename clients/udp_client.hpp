@@ -1,11 +1,11 @@
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 #include <unistd.h>
 #include <csignal>
 #include "boost/asio.hpp"
 
 using namespace boost::asio;
 
-class NatNet2Udp : public CyberZooMocapClient
+class NatNet2Udp : public UnifiedMocapClient
 {
 public:
     NatNet2Udp() : _socket{_io_service}

@@ -1,6 +1,6 @@
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 
-class NatNet2Debug : public CyberZooMocapClient
+class NatNet2Debug : public UnifiedMocapClient
 {
 public:
     NatNet2Debug()

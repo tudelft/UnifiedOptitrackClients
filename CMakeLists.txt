@@ -8,7 +8,7 @@ if(NOT DEFINED CLIENTS)
     set(CLIENTS "debug;ivy;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
-add_executable(client src/main.cpp src/cyberzoo_mocap_client.cpp)
+add_executable(client src/main.cpp src/unified_mocap_client.cpp)
 ADD_CUSTOM_TARGET(console_symlink ALL
                   COMMAND ${CMAKE_COMMAND} -E create_symlink client natnet2console
                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

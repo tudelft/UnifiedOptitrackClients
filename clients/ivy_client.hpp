@@ -1,4 +1,4 @@
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 #include <glib.h>
 #include <Ivy/ivy.h>
 #include <Ivy/ivyglibloop.h>
@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <csignal>
 
-class NatNet2Ivy : public CyberZooMocapClient
+class NatNet2Ivy : public UnifiedMocapClient
 {
 public:
     NatNet2Ivy()

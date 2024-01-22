@@ -1,4 +1,4 @@
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -14,7 +14,7 @@ std::ostream& operator<<(std::ostream& lhs, LogType e) {
     return lhs;
 } 
 
-class NatNet2Log : public CyberZooMocapClient
+class NatNet2Log : public UnifiedMocapClient
 {
 public:
     NatNet2Log() : _logType{LogType::CSV}

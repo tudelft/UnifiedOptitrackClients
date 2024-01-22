@@ -1,4 +1,4 @@
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 
 #include <iostream>
 #include <string>
@@ -64,18 +64,18 @@ std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
 }
 
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
-    CyberZooMocapClient* that = (CyberZooMocapClient*) pUserData;
+    UnifiedMocapClient* that = (UnifiedMocapClient*) pUserData;
     that->natnet_data_handler(data);
 };
 
-CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
+UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 {
     (void) other;
-    std::cerr << "Copy constructor for CyberZooMocapClient not supported. Exiting." << std::endl;
+    std::cerr << "Copy constructor for UnifiedMocapClient not supported. Exiting." << std::endl;
     std::raise(SIGINT);
 }
 
-CyberZooMocapClient::CyberZooMocapClient()
+UnifiedMocapClient::UnifiedMocapClient()
     : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{LongEdge::RIGHT}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, validRB{false}
 {
@@ -95,45 +95,45 @@ CyberZooMocapClient::CyberZooMocapClient()
 
 }
 
-CyberZooMocapClient::~CyberZooMocapClient()
+UnifiedMocapClient::~UnifiedMocapClient()
 {
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::publish_data()
+void UnifiedMocapClient::publish_data()
 {
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::pre_start()
+void UnifiedMocapClient::pre_start()
 {
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::post_start()
+void UnifiedMocapClient::post_start()
 {
     // must be blocking!
     this->pubThread.join();
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::add_extra_po(boost::program_options::options_description &desc)
+void UnifiedMocapClient::add_extra_po(boost::program_options::options_description &desc)
 {
     (void)desc;
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables_map &vm)
+void UnifiedMocapClient::parse_extra_po(const boost::program_options::variables_map &vm)
 {
     (void)vm;
 }
 
-double CyberZooMocapClient::seconds_since_mocap_ts(uint64_t us)
+double UnifiedMocapClient::seconds_since_mocap_ts(uint64_t us)
 {
    return this->pClient->SecondsSinceHostTimestamp(us);
 }
 
-void CyberZooMocapClient::publish_loop()
+void UnifiedMocapClient::publish_loop()
 {
     bool run = true;
     auto ts = std::chrono::steady_clock::now();
@@ -156,7 +156,7 @@ void CyberZooMocapClient::publish_loop()
     }
 }
 
-void CyberZooMocapClient::keystroke_loop()
+void UnifiedMocapClient::keystroke_loop()
 {
     // wait for keystrokes
     std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
@@ -174,7 +174,7 @@ void CyberZooMocapClient::keystroke_loop()
     }
 }
 
-void CyberZooMocapClient::start(int argc, const char *argv[])
+void UnifiedMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
  
@@ -201,13 +201,13 @@ void CyberZooMocapClient::start(int argc, const char *argv[])
         derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
 
     this->pre_start();
-    this->pubThread = std::thread(&CyberZooMocapClient::publish_loop, this);
-    this->keyThread = std::thread(&CyberZooMocapClient::keystroke_loop, this);
+    this->pubThread = std::thread(&UnifiedMocapClient::publish_loop, this);
+    this->keyThread = std::thread(&UnifiedMocapClient::keystroke_loop, this);
     this->post_start();
     //pub.join();
 }
 
-void CyberZooMocapClient::read_po(int argc, char const *argv[])
+void UnifiedMocapClient::read_po(int argc, char const *argv[])
 {
     namespace po = boost::program_options;
     po::options_description desc("Allowed options");
@@ -333,7 +333,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     this->parse_extra_po(vm);
 }
 
-void CyberZooMocapClient::print_startup() const
+void UnifiedMocapClient::print_startup() const
 {
     std::cout<< R"(
     ####################################################
@@ -347,7 +347,7 @@ void CyberZooMocapClient::print_startup() const
     )" << '\n';
 }
 
-void CyberZooMocapClient::print_coordinate_system() const
+void UnifiedMocapClient::print_coordinate_system() const
 {
     // TODO print coordinate systemes based on chosen options
     std::cout<< R"( 
@@ -467,7 +467,7 @@ left │                          │ right )";
     )" << '\n';
 }
 
-ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
+ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
 {
     ErrorCode ret;
     static constexpr unsigned int DISCOVERY_TIMEOUT = 1000;
@@ -608,7 +608,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     return ErrorCode_OK;
 }
 
-pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
+pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
 {
     pose_t result(newPose);
     
@@ -740,7 +740,7 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
     return result;
 }
 
-void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
+void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 {
     // get timestamp
     uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency * 1e-6);

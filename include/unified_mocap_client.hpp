@@ -1,5 +1,5 @@
-#ifndef H_CYBERZOO_OPTITRACK_CLIENT
-#define H_CYBERZOO_OPTITRACK_CLIENT
+#ifndef H_UNIFIED_OPTITRACK_CLIENT
+#define H_UNIFIED_OPTITRACK_CLIENT
 
 #include <vector>
 #include <mutex>
@@ -22,7 +22,7 @@ enum CoordinateSystem { UNCHANGED=0, NED, ENU};
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
 enum LongEdge{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
 
-class CyberZooMocapClient 
+class UnifiedMocapClient 
 {
 private:
     float publish_dt;
@@ -143,9 +143,9 @@ protected:
     
 
 public:
-    CyberZooMocapClient();
-    CyberZooMocapClient(const CyberZooMocapClient &other);
-    ~CyberZooMocapClient();
+    UnifiedMocapClient();
+    UnifiedMocapClient(const UnifiedMocapClient &other);
+    ~UnifiedMocapClient();
     void natnet_data_handler(sFrameOfMocapData* data);
 
     /* Function that needs to be called after creating
@@ -163,4 +163,4 @@ public:
 };
 
 
-#endif //H_CYBERZOO_OPTITRACK_CLIENT
+#endif //H_UNIFIED_OPTITRACK_CLIENT
