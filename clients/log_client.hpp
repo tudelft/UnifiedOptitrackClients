@@ -38,7 +38,7 @@ private:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         desc.add_options()
-            ("filename,n", boost::program_options::value<std::string>(), "The filename to log to.")
+            ("filename,o", boost::program_options::value<std::string>(), "The filename to log to.")
             ("logtype,t", boost::program_options::value<std::string>(), "Currently only 'csv' supported.")
         ;
     }

@@ -20,14 +20,15 @@ constexpr unsigned int MAX_TRACKED_RB = 10;
 
 enum CoordinateSystem { UNCHANGED=0, NED, ENU};
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
-enum LongEdge{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
+enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
 
 class UnifiedMocapClient 
 {
 private:
     float publish_dt;
     CoordinateSystem co;
-    LongEdge long_edge;
+    ArenaDirection long_edge;
+    ArenaDirection craft_nose;
     NatNetClient* pClient;
     sNatNetClientConnectParams connectParams;
     UpAxis upAxis;

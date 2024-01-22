@@ -43,7 +43,7 @@ std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
     return lhs;
 } 
 
-std::ostream& operator<<(std::ostream& lhs, LongEdge e) {
+std::ostream& operator<<(std::ostream& lhs, ArenaDirection e) {
     switch(e) {
     case RIGHT: lhs << "RIGHT"; break;
     case FAR_SIDE: lhs << "FAR_SIDE"; break;
@@ -76,7 +76,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 }
 
 UnifiedMocapClient::UnifiedMocapClient()
-    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{LongEdge::RIGHT}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, validRB{false}
 {
 
@@ -216,7 +216,8 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
         ("publish_frequency,f", po::value<float>(), "publishing frequency of the MoCap odometry")
         ("streaming_ids,s", po::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to track")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
-        ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration[right, far_side, left, near_side]")
+        ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration [right, far_side, left, near_side]")
+        ("craft_nose,n", po::value<std::string>(), "direction of aircraft nose when creating the rigid body in Motive [right, far_side, left, near_side]")
     ;
 
     // Adding any extra program options from the sub-class
@@ -293,19 +294,19 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
 
         if(le.compare("right") == 0)
         {
-            this->long_edge = LongEdge::RIGHT;
+            this->long_edge = ArenaDirection::RIGHT;
         }
         else if(le.compare("far_side") == 0)
         {
-            this->long_edge = LongEdge::FAR_SIDE;
+            this->long_edge = ArenaDirection::FAR_SIDE;
         }
         else if (le.compare("left") == 0)
         {
-            this->long_edge = LongEdge::LEFT;
+            this->long_edge = ArenaDirection::LEFT;
         }
         else if (le.compare("near_side") == 0)
         {
-            this->long_edge = LongEdge::NEAR_SIDE;
+            this->long_edge = ArenaDirection::NEAR_SIDE;
         }
         else
         {
@@ -320,6 +321,42 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
     {
         std::cout << "Long Edge direction not set, defaulting to "
                   << this->long_edge << std::endl;
+    }
+
+    if(vm.count("craft_nose"))
+    {
+        std::string le = vm["craft_nose"].as<std::string>();
+        boost::algorithm::to_lower(le);
+
+        if(le.compare("right") == 0)
+        {
+            this->craft_nose = ArenaDirection::RIGHT;
+        }
+        else if(le.compare("far_side") == 0)
+        {
+            this->craft_nose = ArenaDirection::FAR_SIDE;
+        }
+        else if (le.compare("left") == 0)
+        {
+            this->craft_nose = ArenaDirection::LEFT;
+        }
+        else if (le.compare("near_side") == 0)
+        {
+            this->craft_nose = ArenaDirection::NEAR_SIDE;
+        }
+        else
+        {
+            std::cout << "A/C Nose Direction " << le << " not definied. Exiting" << std::endl;
+            std::raise(SIGINT);
+        }
+
+        std::cout << "A/C nose direction set to " << this->craft_nose << std::endl;
+
+    }
+    else
+    {
+        std::cout << "A/C nose direction not set, defaulting to "
+                  << this->craft_nose << std::endl;
     }
 
     // process streaming ids
@@ -347,19 +384,43 @@ void UnifiedMocapClient::print_startup()
 
 void UnifiedMocapClient::print_coordinate_system() const
 {
-    // TODO print coordinate systemes based on chosen options
+    // There's probably a better way to do this but I can't think
+    // of it. So a bunch of nested switch-case statements it is.
     std::cout<< R"( 
                far
      +──────────────────────────+
+     │                          │)";
+    switch(this->craft_nose)
+    {
+        case ArenaDirection::RIGHT:
+            std::cout << R"(
      │                          │
-     │        ⊙ ⊙               │
-     │       ⊙ + ⊙              │
-     │        ⊙ ⊙               │
+     │       [craft] ▶          │
+     │                          │)";
+            break;
+        case ArenaDirection::FAR_SIDE:
+            std::cout << R"(
+     │            ▲             │
+     │         [craft]          │
+     │                          │)";
+            break;
+        case ArenaDirection::LEFT:
+            std::cout << R"(
+     │                          │
+     │       ◀ [craft]          │
+     │                          │)";
+            break;
+        case ArenaDirection::NEAR_SIDE:
+            std::cout << R"(
+     │                          │
+     │         [craft]          │
+     │            ▼             │)";
+            break;
+    }
+
+    std::cout << R"(
 left │                          │ right )";
 
-    // There's probably a better way to do this but I can't think
-    // of it. So a bunch of nested switch-case statements it is.
-    
     // If the upAxis is not detected the CO is not well defined
     // and we can't draw the coordinate system
     if(this->upAxis == UpAxis::NOTDETECTED)
@@ -399,25 +460,25 @@ left │                          │ right )";
         case CoordinateSystem::NED:
             switch (this->long_edge)
             {
-                case LongEdge::RIGHT:
+                case ArenaDirection::RIGHT:
                     std::cout << R"( 
      │                          │
      │   z  ⓧ → x              │
      │    y ↓                   │)";
                     break;
-                case LongEdge::FAR_SIDE:
+                case ArenaDirection::FAR_SIDE:
                     std::cout << R"( 
      │    x ↑                   │
      │   z  ⓧ → y              │
      │                          │)";
                     break;
-                case LongEdge::LEFT:
+                case ArenaDirection::LEFT:
                     std::cout << R"( 
      │    y ↑                   │
      │  x ← ⓧ z                │
      │                          │)";
                     break;
-                case LongEdge::NEAR_SIDE:
+                case ArenaDirection::NEAR_SIDE:
                     std::cout << R"( 
      │                          │
      │  y ← ⓧ z                │
@@ -428,25 +489,25 @@ left │                          │ right )";
         case CoordinateSystem::ENU:
             switch (this->long_edge)
             {
-                case LongEdge::RIGHT:
+                case ArenaDirection::RIGHT:
                     std::cout << R"( 
      │    y ↑                   │
      │   z  ⊙ → x               │
      │                          │)";
                     break;
-                case LongEdge::FAR_SIDE:
+                case ArenaDirection::FAR_SIDE:
                     std::cout << R"( 
      │    x ↑                   │
      │  y ← ⊙ z                 │
      │                          │)";
                     break;
-                case LongEdge::LEFT:
+                case ArenaDirection::LEFT:
                     std::cout << R"( 
      │                          │
      │  x ← ⊙ z                 │
      │    y ↓                   │)";
                     break;
-                case LongEdge::NEAR_SIDE:
+                case ArenaDirection::NEAR_SIDE:
                     std::cout << R"( 
      │                          │
      │   z  ⊙ → y               │
@@ -580,7 +641,11 @@ ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
     ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
     if (ret == ErrorCode_OK) {
         this->fSample = (double) *((float*)response);
-        std::cout << this->fSample << "Hz" << std::endl;
+        std::cout << this->fSample << "Hz";
+        if (this->fSample < (1.0 / this->publish_dt))
+            std::cout << " WARNING: Publish frequency set higher than this. Expect duplicate messages.";
+        
+        std::cout << std::endl;
     } else {
         std::cout << "Error code " << ret << std::endl;
         return ret;
@@ -670,10 +735,10 @@ pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
         switch(this->long_edge)
         {
 
-            case LongEdge::RIGHT:
+            case ArenaDirection::RIGHT:
                 // We do nothing because this is what we want to have
                 break;
-            case LongEdge::FAR_SIDE:
+            case ArenaDirection::FAR_SIDE:
                 // Rotate to align in the yaw plane
                 result.x = z_copy;
                 result.z = -x_copy;
@@ -681,7 +746,7 @@ pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
                 result.qx = qz_copy;
                 result.qz = -qx_copy;
                 break;
-            case LongEdge::LEFT:
+            case ArenaDirection::LEFT:
                 // Rotate to align in the yaw plane
                 result.x = -x_copy;
                 result.z = -z_copy;
@@ -689,7 +754,7 @@ pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
                 result.qx = -qx_copy;
                 result.qz = -qz_copy;
                 break;
-            case LongEdge::NEAR_SIDE:
+            case ArenaDirection::NEAR_SIDE:
                 // Rotate to align in the yaw plane
                 result.x = -z_copy;
                 result.z = x_copy;
@@ -698,6 +763,44 @@ pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
                 result.qz = qx_copy;
                 break;
         }
+
+        qw_copy = result.qw;
+        qx_copy = result.qx;
+        qy_copy = result.qy;
+        qz_copy = result.qz;
+
+        float nose_rot_qw;
+        float nose_rot_qy;
+
+        switch(this->craft_nose) {
+            case ArenaDirection::RIGHT:
+                // left hand pi/2 rotation around Y axis (up)
+                nose_rot_qw = -sqrt(2.0)/2.0;
+                nose_rot_qy =  sqrt(2.0)/2.0;
+                break;
+            case ArenaDirection::FAR_SIDE:
+                // no change, because this is what we have
+                nose_rot_qw = 1.0;
+                nose_rot_qy = 0.0;
+                break;
+            case ArenaDirection::LEFT:
+                // right hand pi/2 rotation around Y axis (up)
+                nose_rot_qw = sqrt(2.0)/2.0;
+                nose_rot_qy = sqrt(2.0)/2.0;
+                break;
+            case ArenaDirection::NEAR_SIDE:
+                // pi rotation around Y
+                nose_rot_qw =  0.0;
+                nose_rot_qy = -1.0;
+                break;
+        }
+
+        // perform nose rotation as quaternion rotation https://gegcalculators.com/quaternion-multiplication-calculator-online/
+        result.qw = nose_rot_qw * qw_copy  -  nose_rot_qy * qy_copy;
+        result.qx = nose_rot_qw * qx_copy  +  nose_rot_qy * qz_copy;
+        result.qy = nose_rot_qw * qy_copy  +  nose_rot_qy * qw_copy;
+        result.qz = nose_rot_qw * qz_copy  -  nose_rot_qy * qx_copy;
+
 
         x_copy = result.x;
         y_copy = result.y;
