@@ -75,9 +75,7 @@ public:
     {
         for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         {
-            if (this->isUnpublishedRB(i) && this->isValidRB(i)) {
-                this->markPublishedRB(i);
-
+            if (this->isUnpublishedRB(i)) {
                 pose_t pose = this->getPoseRB(i);
                 pose_der_t pose_der = this->getPoseDerRB(i);
                 IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",

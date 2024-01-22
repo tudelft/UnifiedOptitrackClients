@@ -72,7 +72,7 @@ private:
     {
         _logFile.open(_logFilename);
         // write header
-        _logFile << "timestamp[us],valid,RBid,x[m],y[m],z[m],qx,qy,qz,qw,vx[m/s],vy[m/s],vz[m/s],wxbody[rad/s],wybody[rad/s],wzbody[rad/s]";
+        _logFile << "timestamp[us],RBid,x[m],y[m],z[m],qx,qy,qz,qw,vx[m/s],vy[m/s],vz[m/s],wxbody[rad/s],wybody[rad/s],wzbody[rad/s]";
         _logFile << std::endl;
     }
 
@@ -80,15 +80,12 @@ private:
     {
         for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         {
-            if (this->isUnpublishedRB(i) && this->isValidRB(i)) {
-                this->markPublishedRB(i);
-
+            if (this->isUnpublishedRB(i)) {
                 unsigned int streaming_id = this->getStreamingId(i);
                 pose_t pose = this->getPoseRB(i);
                 pose_der_t pose_der = this->getPoseDerRB(i);
-                bool valid = this->isValidRB(i);
 
-                _logFile << boost::format("%1%,%2%,%3%,") % pose.timeUs % valid % streaming_id;
+                _logFile << boost::format("%1%,%2%,") % pose.timeUs % streaming_id;
                 _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
                     % pose.x % pose.y % pose.z % pose.qx % pose.qy % pose.qz % pose.qw;
                 _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")

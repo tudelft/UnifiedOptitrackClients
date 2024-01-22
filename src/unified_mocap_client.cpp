@@ -77,7 +77,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 
 UnifiedMocapClient::UnifiedMocapClient()
     : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
-    nTrackedRB{0}, validRB{false}
+    nTrackedRB{0}
 {
 
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -88,7 +88,7 @@ UnifiedMocapClient::UnifiedMocapClient()
     // Initialize non-trivial arrays
     for(unsigned int i = 0; i < MAX_TRACKED_RB; i++)
     {
-        this->validRB[i] = false;
+        this->setPublishedAllRB();
         this->poseRB[i] = pose_t();
         this->poseDerRB[i] = pose_der_t(); 
     }
@@ -141,6 +141,7 @@ void UnifiedMocapClient::publish_loop()
     while(run)
     {
         this->publish_data();
+        this->setPublishedAllRB();
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(sleep_time * 1s);
 
@@ -846,10 +847,6 @@ void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
     // get timestamp
     uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency * 1e-6);
 
-    // reset validRB message to false, we will set to true if indeed contained in frame
-    for (unsigned int idx = 0; idx < this->getNTrackedRB(); idx++)
-        validRB[idx] = false;
-
     // loop over bodies in frame and process the ones we listen to
     bool printedHeader = false;
 	for(int i=0; i < data->nRigidBodies; i++) {
@@ -859,12 +856,8 @@ void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
             continue; // untracked by us
 
         bool bTrackingValid = data->RigidBodies[i].params & 0x01;
-        if (bTrackingValid) {
-            validRB[idx] = true;
-        } else {
-            validRB[idx] = false;
+        if (!bTrackingValid)
             continue;
-        }
 
         if ( (this->printMessages) && (!printedHeader) ) {
             std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us. Tracked bodies:" << std::endl;

@@ -37,7 +37,6 @@ private:
     bool printMessages;
     uint8_t nTrackedRB;
     int trackedRB[MAX_TRACKED_RB];
-    bool validRB[MAX_TRACKED_RB];
     bool unpublishedDataRB[MAX_TRACKED_RB];
     pose_t poseRB[MAX_TRACKED_RB];
     std::mutex poseMutexes[MAX_TRACKED_RB];
@@ -87,21 +86,19 @@ protected:
     {
         return this->trackedRB[idx];
     }
-    bool isValidRB(unsigned int idx)
-    {
-        return this->validRB[idx];
-    }
     bool isUnpublishedRB(unsigned int idx)
     {
         return this->unpublishedDataRB[idx];
     }
-    void markPublishedRB(unsigned int idx)
+    void setPublishedAllRB(void)
     {
-        this->unpublishedDataRB[idx] = false;
+        for (unsigned int idx = 0; idx < getNTrackedRB(); idx++)
+            this->unpublishedDataRB[idx] = false;
     }
-    void markUnpublishedRB(unsigned int idx)
+    void setUnpublishedRB(unsigned int idx)
     {
-        this->unpublishedDataRB[idx] = true;
+        for (unsigned int idx = 0; idx < getNTrackedRB(); idx++)
+            this->unpublishedDataRB[idx] = true;
     }
     /* Thread safe mutators and accessors for the current pose 
      * and pose derivative values. */
@@ -110,7 +107,7 @@ protected:
         this->poseMutexes[idx].lock();
 
         memcpy(&(this->poseRB[idx]), &pose, sizeof(pose_t));
-        this->markUnpublishedRB(idx);
+        this->setUnpublishedRB(idx);
 
         this->poseMutexes[idx].unlock();
         return true;
@@ -127,7 +124,7 @@ protected:
         this->poseDerMutexes[idx].lock();
 
         memcpy(&(this->poseDerRB[idx]), &poseDer, sizeof(pose_der_t));
-        this->markUnpublishedRB(idx);
+        this->setUnpublishedRB(idx);
 
         this->poseDerMutexes[idx].unlock();
         return true;

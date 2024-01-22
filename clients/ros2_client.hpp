@@ -108,9 +108,8 @@ public:
         for(unsigned int i = 0; i < this->_pose_publishers.size(); i++)
         {   
             // Only publish messages if the current value is valid and has not been published before
-            if(this->isUnpublishedRB(i) && this->isValidRB(i))
+            if(this->isUnpublishedRB(i))
             {
-                this->markPublishedRB(i);
                 // Get the current pose and twist
                 pose_t pose = this->getPoseRB(i);
                 pose_der_t twist = this->getPoseDerRB(i);

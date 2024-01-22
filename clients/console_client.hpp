@@ -80,16 +80,12 @@ private:
         // this gets called every this->publish_dt seconds. Publish data here.
         // for instance, this is how to just print the z-position of all tracked bodies
 
+        // don't run anything expensive in here, just publishing
+
         /*
         for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         {
-            if (this->isUnpublishedRB(i) && this->isValidRB(i)) {
-                // DONT FORGET to mark RB published, so that we only publish new data
-                // this is safety relevant, as it stops publishing when no new data
-                // is available which can be easily caught on the receiver.
-                this->markPublishedRB(i);
-
-
+            if (this->isUnpublishedRB(i)) {
                 unsigned int streaming_id = this->getStreamingIds()[i];
 
                 pose_t pose = this->getPoseRB(i);
