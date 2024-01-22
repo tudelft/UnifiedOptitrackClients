@@ -19,7 +19,7 @@ cmake .. && make
 Build only some with (for example):
 ```shell
 mkdir build && cd build
-cmake -D'CLIENTS=debug;ivy;ros2;ros2px4' .. && make
+cmake -D'CLIENTS=console;ivy;ros2;ros2px4' .. && make
 ```
 
 ## Prerequisites
@@ -41,5 +41,5 @@ function. It _can_ also implement
 
     void add_extra_po(boost::program_options::options_description &desc)
     void parse_extra_po(const boost::program_options::variables_map &vm)
-Afterward, the client needs to be added to the `CMakeList.txt` file and added to the main executable `main.cpp` using compile options. A simple example of how to do this is the `DebugClient` defined in `clients/debug_client.hpp`.
+Afterward, the client needs to be added to the `CMakeList.txt` file and added to the main executable `main.cpp` using compile options. A simple example of how to do this is the `ConsoleClient` defined in `clients/console_client.hpp`.
     

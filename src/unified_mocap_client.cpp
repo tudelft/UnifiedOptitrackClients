@@ -335,6 +335,7 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
 
 void UnifiedMocapClient::print_startup()
 {
+    // generator and font: https://patorjk.com/software/taag/#p=display&f=Small&t=Type%20Something%20
     std::cout<< R"(
 #################################################################################
 ##  _   _      _  __ _        _ __  __                    ___ _ _         _    ##

@@ -2,8 +2,8 @@
 
 #include "unified_mocap_client.hpp"
 
-#ifdef USE_CLIENT_DEBUG
-    #include "debug_client.hpp"
+#ifdef USE_CLIENT_CONSOLE
+    #include "console_client.hpp"
 #endif
 
 #ifdef USE_CLIENT_IVY
@@ -47,22 +47,11 @@ int main(int argc, char const *argv[])
 
 	signal(SIGINT, signal_handler);
 
+#ifdef USE_CLIENT_CONSOLE
     if (p.filename() == "natnet2console") {
-        UnifiedMocapClient client = UnifiedMocapClient();
-        std::cout<< R"(
-##   ___                  _      ################################################
-##  / __|___ _ _  ___ ___| |___  ##
-## | (__/ _ \ ' \(_-</ _ \ / -_) ##
-##  \___\___/_||_/__/\___/_\___| ##
-###################################
-)" << std::endl;
+        NatNet2Console client = NatNet2Console();
         client.start(argc, argv);
     } else
-
-#ifdef USE_CLIENT_DEBUG
-    if (p.filename() == "natnet2debug") {
-        NatNet2Debug client = NatNet2Debug(); client.start(argc, argv);
-    } else 
 #endif
 
 #ifdef USE_CLIENT_IVY
