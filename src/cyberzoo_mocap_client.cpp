@@ -394,7 +394,7 @@ left │                          │ right )";
                     std::cout << R"( 
      │      ↑                   │
      │    z ⊙ →                 │
-     │    y-z Unchanged         │)";
+     │    x-y Unchanged         │)";
                     break;
             }
             break;
