@@ -80,18 +80,22 @@ private:
     {
         for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         {
-            unsigned int streaming_id = this->getStreamingId(i);
-            pose_t pose = this->getPoseRB(i);
-            pose_der_t pose_der = this->getPoseDerRB(i);
-            bool valid = this->getValidRB(i);
+            if (this->isUnpublishedRB(i) && this->isValidRB(i)) {
+                this->markPublishedRB(i);
 
-            _logFile << boost::format("%1%,%2%,%3%,") % pose.timeUs % valid % streaming_id;
-            _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
-                % pose.x % pose.y % pose.z % pose.qx % pose.qy % pose.qz % pose.qw;
-            _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")
-                % pose_der.x % pose_der.y % pose_der.z % pose_der.wx % pose_der.wy % pose_der.wz;
+                unsigned int streaming_id = this->getStreamingId(i);
+                pose_t pose = this->getPoseRB(i);
+                pose_der_t pose_der = this->getPoseDerRB(i);
+                bool valid = this->isValidRB(i);
 
-            _logFile << std::endl;
+                _logFile << boost::format("%1%,%2%,%3%,") % pose.timeUs % valid % streaming_id;
+                _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
+                    % pose.x % pose.y % pose.z % pose.qx % pose.qy % pose.qz % pose.qw;
+                _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")
+                    % pose_der.x % pose_der.y % pose_der.z % pose_der.wx % pose_der.wy % pose_der.wz;
+
+                _logFile << std::endl;
+            }
         }
     }
 

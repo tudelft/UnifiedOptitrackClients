@@ -83,13 +83,21 @@ private:
         /*
         for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         {
-            unsigned int streaming_id = this->getStreamingIds()[i];
+            if (this->isUnpublishedRB(i) && this->isValidRB(i)) {
+                // DONT FORGET to mark RB published, so that we only publish new data
+                // this is safety relevant, as it stops publishing when no new data
+                // is available which can be easily caught on the receiver.
+                this->markPublishedRB(i);
 
-            pose_t pose = this->getPoseRB(i);
-            //pose_der_t pose_der = this->getPoseDerRB(i); // derivative
 
-            std::cout << "Rigid body with streaming id " << streaming_id 
-            << " has z position " << pose.z << std::endl;
+                unsigned int streaming_id = this->getStreamingIds()[i];
+
+                pose_t pose = this->getPoseRB(i);
+                //pose_der_t pose_der = this->getPoseDerRB(i); // derivative
+
+                std::cout << "Rigid body with streaming id " << streaming_id 
+                << " has z position " << pose.z << std::endl;
+            }
         }
         */
     }

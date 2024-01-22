@@ -75,13 +75,17 @@ public:
     {
         for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         {
-            pose_t pose = this->getPoseRB(i);
-            pose_der_t pose_der = this->getPoseDerRB(i);
-            IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
-                _ac_id[i], pose.timeUs/1000,  //todo: probably not the right timestamp
-                pose.x, pose.y, pose.z,
-                pose_der.x, pose_der.y, pose_der.z,
-                pose.qw, pose.qx, pose.qy, pose.qz);
+            if (this->isUnpublishedRB(i) && this->isValidRB(i)) {
+                this->markPublishedRB(i);
+
+                pose_t pose = this->getPoseRB(i);
+                pose_der_t pose_der = this->getPoseDerRB(i);
+                IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
+                    _ac_id[i], pose.timeUs/1000,  //todo: probably not the right timestamp
+                    pose.x, pose.y, pose.z,
+                    pose_der.x, pose_der.y, pose_der.z,
+                    pose.qw, pose.qx, pose.qy, pose.qz);
+            }
         }
     }
 

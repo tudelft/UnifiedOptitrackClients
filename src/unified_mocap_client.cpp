@@ -643,7 +643,7 @@ ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
         this->fSample = (double) *((float*)response);
         std::cout << this->fSample << "Hz";
         if (this->fSample < (1.0 / this->publish_dt))
-            std::cout << " WARNING: Publish frequency set higher than this. Expect duplicate messages.";
+            std::cout << " WARNING: Publish frequency was set higher which has no effect: incomming messages will only be published once.";
         
         std::cout << std::endl;
     } else {

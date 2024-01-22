@@ -85,19 +85,21 @@ public:
 
         //for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         //{
-            if (!(this->getValidRB(i)))
-                return;
-            pose_t pose = this->getPoseRB(i);
-            pose_der_t pose_der = this->getPoseDerRB(i);
-            uint8_t buf[Ni+Np+Nd];
-            memcpy(buf, &(this->_ac_id[i]), Ni);
-            memcpy(buf+Ni, &pose, Np);
-            memcpy(buf+Ni+Np, &pose_der, Nd);
+            if (this->isUnpublishedRB(i) && this->isValidRB(i)) {
+                this->markPublishedRB(i);
 
-            boost::system::error_code err;
-            auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
-            if (err.failed())
-                std::cout << "Failed with error " << err << std::endl;
+                pose_t pose = this->getPoseRB(i);
+                pose_der_t pose_der = this->getPoseDerRB(i);
+                uint8_t buf[Ni+Np+Nd];
+                memcpy(buf, &(this->_ac_id[i]), Ni);
+                memcpy(buf+Ni, &pose, Np);
+                memcpy(buf+Ni+Np, &pose_der, Nd);
+
+                boost::system::error_code err;
+                auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
+                if (err.failed())
+                    std::cout << "Failed with error " << err << std::endl;
+            }
         //}
     }
 
