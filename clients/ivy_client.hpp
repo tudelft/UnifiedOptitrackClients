@@ -11,6 +11,14 @@ class NatNet2Ivy : public UnifiedMocapClient
 public:
     NatNet2Ivy()
     {
+        std::cout<< R"(
+##  ___           ###############################################################
+## |_ _|_ ___  _  ##
+##  | |\ V / || | ##
+## |___|\_/ \_, | ##
+##          |__/  ##
+####################
+)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override

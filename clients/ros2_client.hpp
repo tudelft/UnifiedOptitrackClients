@@ -23,6 +23,13 @@ public:
                                 "--log-level", "rclcpp:=error"})),
                     _topics{"/mocap"}
     {  
+        std::cout<< R"(
+##  ___  ___  ___   ___  ########################################################
+## | _ \/ _ \/ __| |_  ) ##
+## |   / (_) \__ \  / /  ##
+## |_|_\\___/|___/ /___| ##
+###########################
+)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override

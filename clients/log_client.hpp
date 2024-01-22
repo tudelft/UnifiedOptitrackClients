@@ -19,6 +19,14 @@ class NatNet2Log : public UnifiedMocapClient
 public:
     NatNet2Log() : _logType{LogType::CSV}
     {
+        std::cout<< R"(
+##  _               #############################################################
+## | |   ___  __ _  ##
+## | |__/ _ \/ _` | ##
+## |____\___/\__, | ##
+##           |___/  ##
+######################
+)" << std::endl;
     }
 
     ~NatNet2Log() {

@@ -47,7 +47,7 @@ private:
     FilteredDifferentiator derFilter[MAX_TRACKED_RB];
 
     void read_po(int argc, char const *argv[]);
-    void print_startup() const;
+    void print_startup();
     void print_coordinate_system() const;
 
     /* Transforms an unchanged pose to the desired coordinate system */

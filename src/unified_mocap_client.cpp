@@ -227,7 +227,7 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
     po::notify(vm);    
 
     if (vm.count("help")) {
-        std::cout << desc << "\n";
+        std::cout << desc << std::endl;
         exit(0);
     }
 
@@ -333,18 +333,15 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
     this->parse_extra_po(vm);
 }
 
-void UnifiedMocapClient::print_startup() const
+void UnifiedMocapClient::print_startup()
 {
     std::cout<< R"(
-    ####################################################
-    ##      _____     __          ____  ____  ____    ## 
-    ##     / ___/_ __/ /  ___ ___/_  / / __ \/ __ \   ##
-    ##    / /__/ // / _ \/ -_) __// /_/ /_/ / /_/ /   ##
-    ##    \___/\_, /_.__/\__/_/  /___/\____/\____/    ##
-    ##        /___/                                   ##
-    ##                                                ##
-    ####################################################
-    )" << '\n';
+#################################################################################
+##  _   _      _  __ _        _ __  __                    ___ _ _         _    ##
+## | | | |_ _ (_)/ _(_)___ __| |  \/  |___  __ __ _ _ __ / __| (_)___ _ _| |_  ##
+## | |_| | ' \| |  _| / -_) _` | |\/| / _ \/ _/ _` | '_ \ (__| | / -_) ' \  _| ##
+##  \___/|_||_|_|_| |_\___\__,_|_|  |_\___/\__\__,_| .__/\___|_|_\___|_||_\__| ##
+##                                                 |_|                         ##)";
 }
 
 void UnifiedMocapClient::print_coordinate_system() const
@@ -464,7 +461,7 @@ left │                          │ right )";
      +──────────────────────────+
      │    Observers  (near)     │
      └──────────────────────────┘
-    )" << '\n';
+    )" << std::endl;
 }
 
 ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()

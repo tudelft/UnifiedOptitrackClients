@@ -10,6 +10,13 @@ class NatNet2Udp : public UnifiedMocapClient
 public:
     NatNet2Udp() : _socket{_io_service}
     {
+        std::cout<< R"(
+##  _   _ ___  ___  #############################################################
+## | | | |   \| _ \ ##
+## | |_| | |) |  _/ ##
+##  \___/|___/|_|   ##
+######################
+)" << std::endl;
     }
     ~NatNet2Udp()
     {
