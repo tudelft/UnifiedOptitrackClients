@@ -77,9 +77,8 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 
 UnifiedMocapClient::UnifiedMocapClient()
     : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
-    nTrackedRB{0}
+    nTrackedRB{0}, testMode{false}
 {
-
     // TODO: use builtin forward prediction with the latency estimates plus a 
     // user-defined interval (on the order of 10ms)?
 
@@ -135,11 +134,34 @@ double UnifiedMocapClient::seconds_since_mocap_ts(uint64_t us)
 
 void UnifiedMocapClient::publish_loop()
 {
+    using namespace std::chrono_literals;
     bool run = true;
     auto ts = std::chrono::steady_clock::now();
     float sleep_time = this->publish_dt;
+
     while(run)
     {
+        if (this->testMode)
+        {
+            sFrameOfMocapData fakeData;
+            const auto microsecondsSinceEpoch = std::chrono::time_point_cast<std::chrono::microseconds>(ts).time_since_epoch().count();
+            fakeData.CameraMidExposureTimestamp = microsecondsSinceEpoch;
+            fakeData.nRigidBodies = 1;
+            fakeData.RigidBodies[0].ID = this->get_streaming_ids()[0];
+            fakeData.RigidBodies[0].MeanError = 0.001;
+            fakeData.RigidBodies[0].qw = 1.;
+            fakeData.RigidBodies[0].qx = 0.;
+            fakeData.RigidBodies[0].qy = 0.;
+            fakeData.RigidBodies[0].qz = 0.;
+            fakeData.RigidBodies[0].x = 1.;
+            fakeData.RigidBodies[0].y = 2.;
+            fakeData.RigidBodies[0].z = 3.;
+            fakeData.RigidBodies[0].params = 0x01; // valid
+            this->natnet_data_handler(&fakeData);
+        }
+
+        // TODO: do not publish if no new data!
+
         this->publish_data();
         this->setPublishedAllRB();
         using namespace std::chrono_literals;
@@ -160,7 +182,11 @@ void UnifiedMocapClient::publish_loop()
 void UnifiedMocapClient::keystroke_loop()
 {
     // wait for keystrokes
-    std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+    if (this->testMode)
+        std::cout << std::endl << "Faking messages in test mode! Press q to quit, Press t to toggle message printing" << std::endl;
+    else
+        std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+
 	while ( const int c = getch() )
     {
         switch(c)
@@ -178,21 +204,24 @@ void UnifiedMocapClient::keystroke_loop()
 void UnifiedMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
- 
-    // instantiate client and make connection
-    this->pClient = new NatNetClient();
-    ErrorCode ret = this->connectAndDetectServerSettings();
-    if (ret != ErrorCode_OK) {
-        // returning from main is best for cleanup?
-        std::raise(SIGINT);
-        return;
-    }
 
-    // register callback
-    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
-    if (ret != ErrorCode_OK) {
-        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
-        return;
+    // instantiate client and make connection
+    if (!(this->testMode))
+    {
+        this->pClient = new NatNetClient();
+        ErrorCode ret = this->connectAndDetectServerSettings();
+        if (ret != ErrorCode_OK) {
+            // returning from main is best for cleanup?
+            std::raise(SIGINT);
+            return;
+        }
+
+        // register callback
+        ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
+        if (ret != ErrorCode_OK) {
+            std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
+            return;
+        }
     }
 
     this->print_coordinate_system();
@@ -219,6 +248,7 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
         ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration [right, far_side, left, near_side]")
         ("craft_nose,n", po::value<std::string>(), "direction of aircraft nose when creating the rigid body in Motive [right, far_side, left, near_side]")
+        ("test", "Send test data instead")
     ;
 
     // Adding any extra program options from the sub-class
@@ -252,9 +282,8 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
     }
     else
     {
-        std::cout << "Streaming IDs not set, defaulting to";
-        for(unsigned int id : this->streaming_ids) std::cout << " " << id << " ";
-        std::cout << std::endl;
+        std::cout << "Streaming IDs not set" <<std::endl;
+        exit(1);
     }
 
     if(vm.count("coordinate_system"))
@@ -262,25 +291,14 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
         std::string co_name = vm["coordinate_system"].as<std::string>();
         boost::algorithm::to_lower(co_name);
 
-        if(co_name.compare("unchanged") == 0)
-        {
-            this->co = CoordinateSystem::UNCHANGED;
-        }
-        else if(co_name.compare("ned") == 0)
-        {
-            this->co = CoordinateSystem::NED;
-        }else if (co_name.compare("enu") == 0)
-        {
-            this->co = CoordinateSystem::ENU;
-        }
-        else
-        {
+        if(co_name.compare("unchanged") == 0) { this->co = CoordinateSystem::UNCHANGED; }
+        else if(co_name.compare("ned") == 0) { this->co = CoordinateSystem::NED; }
+        else if (co_name.compare("enu") == 0) { this->co = CoordinateSystem::ENU; }
+        else {
             std::cout << "Coordinate system " << co_name << " not definied. Exiting" << std::endl;
             std::raise(SIGINT);
         }
-        
         std::cout << "Coordinate system set to " << this->co << std::endl;
-
     }
     else
     {
@@ -314,9 +332,7 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
             std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
             std::raise(SIGINT);
         }
-
         std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
-
     }
     else
     {
@@ -358,6 +374,15 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
     {
         std::cout << "A/C nose direction not set, defaulting to "
                   << this->craft_nose << std::endl;
+    }
+
+    if(vm.count("test"))
+    {
+        std::cout << "Sending test data instead of attempting Motive Connect" << std::endl;
+        this->testMode = true;
+        this->upAxis = UpAxis::Y;
+        this->fSample = 100;
+        this->serverConfig.HighResClockFrequency = 1e6;
     }
 
     // process streaming ids
@@ -605,14 +630,13 @@ ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
     if (ret == ErrorCode_OK) {
         std::cout<<"Successful!"<<std::endl;
     } else {
-#ifdef USE_DISCOVERY
         std::cout<<"Failed with unknown error code "<< ret <<std::endl;
-#else
+/*
         std::cout<<"Failed with error code "<< ret <<std::endl;
         std::cout<<std::endl<<"Troubleshooting: " << std::endl;
         std::cout<<"1. Verify connected to Motive network" << std::endl;
         std::cout<<"2. Verify that 'interface' is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
-#endif
+*/
         return ret;
     }
 

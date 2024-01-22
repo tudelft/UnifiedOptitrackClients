@@ -32,6 +32,7 @@ private:
     NatNetClient* pClient;
     sNatNetClientConnectParams connectParams;
     UpAxis upAxis;
+    bool testMode;
 
     // container for tracking the rigid bodies
     bool printMessages;

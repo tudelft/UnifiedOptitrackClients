@@ -28,7 +28,7 @@ public:
         desc.add_options()
             ("client_ip,i", boost::program_options::value<std::string>(), "IP to stream the UDP data to.")
             ("port,p", boost::program_options::value<unsigned short int>(), "UDP Port.")
-            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>()->multitoken(), "ac id(s)")
+            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>()->multitoken(), "Optional Aircraft ID corresponding to the rigid body id(s). These ids will be included in the UDP messages")
         ;
     }
 
@@ -52,20 +52,24 @@ public:
             this->_port = 5005;
         }
 
+        if (this->getStreamingIds().size() > 1) {
+            std::cout << "Number of streaming_ids and ac_ids must be equal to 1 for the udp client. Multiple not (yet) supported"
+                << std::endl;
+            std::raise(SIGINT);
+        }
+
         if(vm.count("ac_id")) {
             this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
-            if ( (this->_ac_id.size() != 1)
-                || (this->_ac_id.size() != this->getStreamingIds().size()) ) {
-                std::cout << "Number of ac_ids and streaming_ids passed must be equal to 1"
-                    << std::endl;
+            if ( this->_ac_id.size() != this->getStreamingIds().size() ) {
+                std::cout << "Number of ac_ids must be equal to streaming_ids" << std::endl;
                 std::raise(SIGINT);
             }
             std::cout << "AC IDs set to";
             for(unsigned int id : this->_ac_id) std::cout << " " << id << " ";
             std::cout << std::endl;
         } else {
-            std::cout << "As many ac_ids as streaming_ids required" << std::endl;
-            std::raise(SIGINT);
+            this->_ac_id.push_back(0);
+            std::cout << "No ac_id passed. Assuming 0." << std::endl;
         }
     }
 
