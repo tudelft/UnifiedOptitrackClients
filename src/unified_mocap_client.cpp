@@ -795,7 +795,9 @@ pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
         qz_copy = result.qz;
 
         float nose_rot_qw;
+        float nose_rot_qx = 0.;
         float nose_rot_qy;
+        float nose_rot_qz = 0.;
 
         switch(this->craft_nose) {
             case ArenaDirection::RIGHT:
@@ -821,10 +823,11 @@ pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
         }
 
         // perform nose rotation as quaternion rotation https://gegcalculators.com/quaternion-multiplication-calculator-online/
-        result.qw = nose_rot_qw * qw_copy  -  nose_rot_qy * qy_copy;
-        result.qx = nose_rot_qw * qx_copy  +  nose_rot_qy * qz_copy;
-        result.qy = nose_rot_qw * qy_copy  +  nose_rot_qy * qw_copy;
-        result.qz = nose_rot_qw * qz_copy  -  nose_rot_qy * qx_copy;
+        // result = q_copy * nose_rot  --> use some library here? does boost have quats?
+        result.qw = qw_copy * nose_rot_qw - qx_copy * nose_rot_qx -  qy_copy * nose_rot_qy - qz_copy * nose_rot_qz;
+        result.qx = qw_copy * nose_rot_qx + qx_copy * nose_rot_qw +  qy_copy * nose_rot_qz - qz_copy * nose_rot_qy;
+        result.qy = qw_copy * nose_rot_qy - qx_copy * nose_rot_qz +  qy_copy * nose_rot_qw + qz_copy * nose_rot_qx;
+        result.qz = qw_copy * nose_rot_qz + qx_copy * nose_rot_qy -  qy_copy * nose_rot_qx + qz_copy * nose_rot_qw;
 
 
         x_copy = result.x;
