@@ -76,7 +76,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 }
 
 UnifiedMocapClient::UnifiedMocapClient()
-    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, testMode{false}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -467,18 +467,21 @@ left │                          │ right )";
                     std::cout << R"( 
      │      ↑                   │
      │    x ⊙ →                 │
+     │                          │
      │    y-z Unchanged         │)";
                     break;
                 case UpAxis::Y:
                     std::cout << R"( 
      │      ↑                   │
      │    y ⊙ →                 │
+     │                          │
      │    x-z Unchanged         │)";
                     break;
                 case UpAxis::Z:
                     std::cout << R"( 
      │      ↑                   │
      │    z ⊙ →                 │
+     │                          │
      │    x-y Unchanged         │)";
                     break;
             }

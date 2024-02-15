@@ -46,7 +46,7 @@ Then you can build your docker image using e.g.,
 Where `-t` defines the name of the docker image and `-f` defines the file path to the `dockerfile`.
 Afterward you can run the docker image with:
 
-    docker run logclient -f cmdline args of your choice
+    docker run --net host -it logclient -f cmdline args of your choice
 
 
 How to write your own client?
