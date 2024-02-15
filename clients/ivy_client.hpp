@@ -1,4 +1,4 @@
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 #include <glib.h>
 #include <Ivy/ivy.h>
 #include <Ivy/ivyglibloop.h>
@@ -6,11 +6,19 @@
 #include <unistd.h>
 #include <csignal>
 
-class NatNet2Ivy : public CyberZooMocapClient
+class NatNet2Ivy : public UnifiedMocapClient
 {
 public:
     NatNet2Ivy()
     {
+        std::cout<< R"(
+##  ___           ###############################################################
+## |_ _|_ ___  _  ##
+##  | |\ V / || | ##
+## |___|\_/ \_, | ##
+##          |__/  ##
+####################
+)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
@@ -67,13 +75,15 @@ public:
     {
         for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
         {
-            pose_t pose = this->getPoseRB(i);
-            pose_der_t pose_der = this->getPoseDerRB(i);
-            IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
-                _ac_id[i], pose.timeUs/1000,  //todo: probably not the right timestamp
-                pose.x, pose.y, pose.z,
-                pose_der.x, pose_der.y, pose_der.z,
-                pose.qw, pose.qx, pose.qy, pose.qz);
+            if (this->isUnpublishedRB(i)) {
+                pose_t pose = this->getPoseRB(i);
+                pose_der_t pose_der = this->getPoseDerRB(i);
+                IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
+                    _ac_id[i], pose.timeUs/1000,  //todo: probably not the right timestamp
+                    pose.x, pose.y, pose.z,
+                    pose_der.x, pose_der.y, pose_der.z,
+                    pose.qw, pose.qx, pose.qy, pose.qz);
+            }
         }
     }
 

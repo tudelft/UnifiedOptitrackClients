@@ -21,7 +21,7 @@ cmake .. && make
 Build only some with (for example):
 ```shell
 mkdir build && cd build
-cmake -D'CLIENTS=debug;ivy;ros2;ros2px4' .. && make
+cmake -D'CLIENTS=console;ivy;ros2;ros2px4' .. && make
 ```
 
 ## Prerequisites
@@ -46,18 +46,18 @@ Then you can build your docker image using e.g.,
 Where `-t` defines the name of the docker image and `-f` defines the file path to the `dockerfile`.
 Afterward you can run the docker image with:
 
-    docker run logclient -f cmdline args of your choice
+    docker run --net host -it logclient -f cmdline args of your choice
 
 
 How to write your own client?
 ==============================
 
-To write your own client it has to inheret from the base class `CyberZooMocapClient` defined in `cyberzoo_mocap_client.hpp` and needs to implement the 
+To write your own client it has to inheret from the base class `UnifiedMocapClient` defined in `unified_mocap_client.hpp` and needs to implement the 
 
     void publish_data()
 function. It _can_ also implement 
 
     void add_extra_po(boost::program_options::options_description &desc)
     void parse_extra_po(const boost::program_options::variables_map &vm)
-Afterward, the client needs to be added to the `CMakeList.txt` file and added to the main executable `main.cpp` using compile options. A simple example of how to do this is the `DebugClient` defined in `clients/debug_client.hpp`.
+Afterward, the client needs to be added to the `CMakeList.txt` file and added to the main executable `main.cpp` using compile options. A simple example of how to do this is the `ConsoleClient` defined in `clients/console_client.hpp`.
     

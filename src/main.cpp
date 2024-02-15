@@ -1,9 +1,9 @@
 #include <boost/filesystem.hpp>
 
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 
-#ifdef USE_CLIENT_DEBUG
-    #include "debug_client.hpp"
+#ifdef USE_CLIENT_CONSOLE
+    #include "console_client.hpp"
 #endif
 
 #ifdef USE_CLIENT_IVY
@@ -47,16 +47,11 @@ int main(int argc, char const *argv[])
 
 	signal(SIGINT, signal_handler);
 
-    std::cout << "Attempting to start client " << p.filename() << std::endl;
-
+#ifdef USE_CLIENT_CONSOLE
     if (p.filename() == "natnet2console") {
-        CyberZooMocapClient client = CyberZooMocapClient(); client.start(argc, argv);
+        NatNet2Console client = NatNet2Console();
+        client.start(argc, argv);
     } else
-
-#ifdef USE_CLIENT_DEBUG
-    if (p.filename() == "natnet2debug") {
-        NatNet2Debug client = NatNet2Debug(); client.start(argc, argv);
-    } else 
 #endif
 
 #ifdef USE_CLIENT_IVY

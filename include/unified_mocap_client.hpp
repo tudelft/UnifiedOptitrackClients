@@ -1,5 +1,5 @@
-#ifndef H_CYBERZOO_OPTITRACK_CLIENT
-#define H_CYBERZOO_OPTITRACK_CLIENT
+#ifndef H_UNIFIED_OPTITRACK_CLIENT
+#define H_UNIFIED_OPTITRACK_CLIENT
 
 #include <vector>
 #include <mutex>
@@ -20,23 +20,25 @@ constexpr unsigned int MAX_TRACKED_RB = 10;
 
 enum CoordinateSystem { UNCHANGED=0, NED, ENU};
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
-enum LongEdge{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
+enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
 
-class CyberZooMocapClient 
+class UnifiedMocapClient 
 {
 private:
     float publish_dt;
     CoordinateSystem co;
-    LongEdge long_edge;
+    ArenaDirection long_edge;
+    ArenaDirection craft_nose;
     NatNetClient* pClient;
     sNatNetClientConnectParams connectParams;
     UpAxis upAxis;
+    bool testMode;
 
     // container for tracking the rigid bodies
     bool printMessages;
     uint8_t nTrackedRB;
     int trackedRB[MAX_TRACKED_RB];
-    bool validRB[MAX_TRACKED_RB];
+    bool unpublishedDataRB[MAX_TRACKED_RB];
     pose_t poseRB[MAX_TRACKED_RB];
     std::mutex poseMutexes[MAX_TRACKED_RB];
     pose_der_t poseDerRB[MAX_TRACKED_RB];
@@ -47,7 +49,7 @@ private:
     FilteredDifferentiator derFilter[MAX_TRACKED_RB];
 
     void read_po(int argc, char const *argv[]);
-    void print_startup() const;
+    void print_startup();
     void print_coordinate_system() const;
 
     /* Transforms an unchanged pose to the desired coordinate system */
@@ -85,16 +87,29 @@ protected:
     {
         return this->trackedRB[idx];
     }
-    bool getValidRB(unsigned int idx)
+    bool isUnpublishedRB(unsigned int idx)
     {
-        return this->validRB[idx];
+        return this->unpublishedDataRB[idx];
+    }
+    void setPublishedAllRB(void)
+    {
+        for (unsigned int idx = 0; idx < getNTrackedRB(); idx++)
+            this->unpublishedDataRB[idx] = false;
+    }
+    void setUnpublishedRB(unsigned int idx)
+    {
+        for (unsigned int idx = 0; idx < getNTrackedRB(); idx++)
+            this->unpublishedDataRB[idx] = true;
     }
     /* Thread safe mutators and accessors for the current pose 
      * and pose derivative values. */
     bool setPoseRB(unsigned int idx, pose_t pose) {
         // Lock respective mutex
         this->poseMutexes[idx].lock();
+
         memcpy(&(this->poseRB[idx]), &pose, sizeof(pose_t));
+        this->setUnpublishedRB(idx);
+
         this->poseMutexes[idx].unlock();
         return true;
     };
@@ -108,7 +123,10 @@ protected:
     bool setPoseDerRB(int idx, pose_der_t poseDer) {
         // Lock respective mutex
         this->poseDerMutexes[idx].lock();
+
         memcpy(&(this->poseDerRB[idx]), &poseDer, sizeof(pose_der_t));
+        this->setUnpublishedRB(idx);
+
         this->poseDerMutexes[idx].unlock();
         return true;
     };
@@ -143,9 +161,9 @@ protected:
     
 
 public:
-    CyberZooMocapClient();
-    CyberZooMocapClient(const CyberZooMocapClient &other);
-    ~CyberZooMocapClient();
+    UnifiedMocapClient();
+    UnifiedMocapClient(const UnifiedMocapClient &other);
+    ~UnifiedMocapClient();
     void natnet_data_handler(sFrameOfMocapData* data);
 
     /* Function that needs to be called after creating
@@ -163,4 +181,4 @@ public:
 };
 
 
-#endif //H_CYBERZOO_OPTITRACK_CLIENT
+#endif //H_UNIFIED_OPTITRACK_CLIENT

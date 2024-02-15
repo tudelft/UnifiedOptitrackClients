@@ -3,15 +3,13 @@ cmake_minimum_required(VERSION 3.14)
 # project and executables
 project(optitrack_clients LANGUAGES CXX)
 
+# ADD YOUR NEW CLIENT TO THIS SEMICOLON-SEPARATED LIST!
 if(NOT DEFINED CLIENTS)
     message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "debug;ivy;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
+    set(CLIENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
-add_executable(client src/main.cpp src/cyberzoo_mocap_client.cpp)
-ADD_CUSTOM_TARGET(console_symlink ALL
-                  COMMAND ${CMAKE_COMMAND} -E create_symlink client natnet2console
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+add_executable(client src/main.cpp src/unified_mocap_client.cpp)
 
 foreach(x ${CLIENTS})
     string(TOUPPER ${x} uppercase)
@@ -40,7 +38,7 @@ target_link_libraries(client ${Boost_LIBRARIES})
 
 include(FetchContent)
 fetchcontent_declare(natnet_sdk_content
-  URL https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.0_ubuntu.tar
+  URL https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.1_ubuntu.tar
 )
 fetchcontent_makeavailable(natnet_sdk_content)
 

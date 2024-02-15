@@ -1,7 +1,7 @@
 #ifndef ROS2_CLIENT_HPP
 #define ROS2_CLIENT_HPP
 
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
@@ -13,7 +13,7 @@
 #include "px4_msgs/msg/timesync_status.hpp"
 #endif
 
-class NatNet2Ros2 : public CyberZooMocapClient, public rclcpp::Node
+class NatNet2Ros2 : public UnifiedMocapClient, public rclcpp::Node
 {
 public:
     NatNet2Ros2() : Node("mocap_publisher",
@@ -23,6 +23,13 @@ public:
                                 "--log-level", "rclcpp:=error"})),
                     _topics{"/mocap"}
     {  
+        std::cout<< R"(
+##  ___  ___  ___   ___  ########################################################
+## | _ \/ _ \/ __| |_  ) ##
+## |   / (_) \__ \  / /  ##
+## |_|_\\___/|___/ /___| ##
+###########################
+)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
@@ -100,8 +107,8 @@ public:
 
         for(unsigned int i = 0; i < this->_pose_publishers.size(); i++)
         {   
-            // Only publish messages if the current value is valid
-            if(this->getValidRB(i))
+            // Only publish messages if the current value is valid and has not been published before
+            if(this->isUnpublishedRB(i))
             {
                 // Get the current pose and twist
                 pose_t pose = this->getPoseRB(i);

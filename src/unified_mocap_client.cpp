@@ -1,4 +1,4 @@
-#include "cyberzoo_mocap_client.hpp"
+#include "unified_mocap_client.hpp"
 
 #include <iostream>
 #include <string>
@@ -43,7 +43,7 @@ std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
     return lhs;
 } 
 
-std::ostream& operator<<(std::ostream& lhs, LongEdge e) {
+std::ostream& operator<<(std::ostream& lhs, ArenaDirection e) {
     switch(e) {
     case RIGHT: lhs << "RIGHT"; break;
     case FAR_SIDE: lhs << "FAR_SIDE"; break;
@@ -64,22 +64,21 @@ std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
 }
 
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
-    CyberZooMocapClient* that = (CyberZooMocapClient*) pUserData;
+    UnifiedMocapClient* that = (UnifiedMocapClient*) pUserData;
     that->natnet_data_handler(data);
 };
 
-CyberZooMocapClient::CyberZooMocapClient(const CyberZooMocapClient &other)
+UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 {
     (void) other;
-    std::cerr << "Copy constructor for CyberZooMocapClient not supported. Exiting." << std::endl;
+    std::cerr << "Copy constructor for UnifiedMocapClient not supported. Exiting." << std::endl;
     std::raise(SIGINT);
 }
 
-CyberZooMocapClient::CyberZooMocapClient()
-    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::UNCHANGED}, long_edge{LongEdge::RIGHT}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
-    nTrackedRB{0}, validRB{false}
+UnifiedMocapClient::UnifiedMocapClient()
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    nTrackedRB{0}, testMode{false}
 {
-
     // TODO: use builtin forward prediction with the latency estimates plus a 
     // user-defined interval (on the order of 10ms)?
 
@@ -88,59 +87,83 @@ CyberZooMocapClient::CyberZooMocapClient()
     // Initialize non-trivial arrays
     for(unsigned int i = 0; i < MAX_TRACKED_RB; i++)
     {
-        this->validRB[i] = false;
+        this->setPublishedAllRB();
         this->poseRB[i] = pose_t();
         this->poseDerRB[i] = pose_der_t(); 
     }
 
 }
 
-CyberZooMocapClient::~CyberZooMocapClient()
+UnifiedMocapClient::~UnifiedMocapClient()
 {
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::publish_data()
+void UnifiedMocapClient::publish_data()
 {
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::pre_start()
+void UnifiedMocapClient::pre_start()
 {
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::post_start()
+void UnifiedMocapClient::post_start()
 {
     // must be blocking!
     this->pubThread.join();
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::add_extra_po(boost::program_options::options_description &desc)
+void UnifiedMocapClient::add_extra_po(boost::program_options::options_description &desc)
 {
     (void)desc;
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-void CyberZooMocapClient::parse_extra_po(const boost::program_options::variables_map &vm)
+void UnifiedMocapClient::parse_extra_po(const boost::program_options::variables_map &vm)
 {
     (void)vm;
 }
 
-double CyberZooMocapClient::seconds_since_mocap_ts(uint64_t us)
+double UnifiedMocapClient::seconds_since_mocap_ts(uint64_t us)
 {
    return this->pClient->SecondsSinceHostTimestamp(us);
 }
 
-void CyberZooMocapClient::publish_loop()
+void UnifiedMocapClient::publish_loop()
 {
+    using namespace std::chrono_literals;
     bool run = true;
     auto ts = std::chrono::steady_clock::now();
     float sleep_time = this->publish_dt;
+
     while(run)
     {
+        if (this->testMode)
+        {
+            sFrameOfMocapData fakeData;
+            const auto microsecondsSinceEpoch = std::chrono::time_point_cast<std::chrono::microseconds>(ts).time_since_epoch().count();
+            fakeData.CameraMidExposureTimestamp = microsecondsSinceEpoch;
+            fakeData.nRigidBodies = 1;
+            fakeData.RigidBodies[0].ID = this->get_streaming_ids()[0];
+            fakeData.RigidBodies[0].MeanError = 0.001;
+            fakeData.RigidBodies[0].qw = 1.;
+            fakeData.RigidBodies[0].qx = 0.;
+            fakeData.RigidBodies[0].qy = 0.;
+            fakeData.RigidBodies[0].qz = 0.;
+            fakeData.RigidBodies[0].x = 1.;
+            fakeData.RigidBodies[0].y = 2.;
+            fakeData.RigidBodies[0].z = 3.;
+            fakeData.RigidBodies[0].params = 0x01; // valid
+            this->natnet_data_handler(&fakeData);
+        }
+
+        // TODO: do not publish if no new data!
+
         this->publish_data();
+        this->setPublishedAllRB();
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(sleep_time * 1s);
 
@@ -156,10 +179,14 @@ void CyberZooMocapClient::publish_loop()
     }
 }
 
-void CyberZooMocapClient::keystroke_loop()
+void UnifiedMocapClient::keystroke_loop()
 {
     // wait for keystrokes
-    std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+    if (this->testMode)
+        std::cout << std::endl << "Faking messages in test mode! Press q to quit, Press t to toggle message printing" << std::endl;
+    else
+        std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
+
 	while ( const int c = getch() )
     {
         switch(c)
@@ -174,24 +201,27 @@ void CyberZooMocapClient::keystroke_loop()
     }
 }
 
-void CyberZooMocapClient::start(int argc, const char *argv[])
+void UnifiedMocapClient::start(int argc, const char *argv[])
 {
     this->read_po(argc, argv);
- 
-    // instantiate client and make connection
-    this->pClient = new NatNetClient();
-    ErrorCode ret = this->connectAndDetectServerSettings();
-    if (ret != ErrorCode_OK) {
-        // returning from main is best for cleanup?
-        std::raise(SIGINT);
-        return;
-    }
 
-    // register callback
-    ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
-    if (ret != ErrorCode_OK) {
-        std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
-        return;
+    // instantiate client and make connection
+    if (!(this->testMode))
+    {
+        this->pClient = new NatNetClient();
+        ErrorCode ret = this->connectAndDetectServerSettings();
+        if (ret != ErrorCode_OK) {
+            // returning from main is best for cleanup?
+            std::raise(SIGINT);
+            return;
+        }
+
+        // register callback
+        ret = this->pClient->SetFrameReceivedCallback( DataHandler, this );
+        if (ret != ErrorCode_OK) {
+            std::cout << "Registering frame received callback failed with Error Code " << ret << std::endl;
+            return;
+        }
     }
 
     this->print_coordinate_system();
@@ -201,13 +231,13 @@ void CyberZooMocapClient::start(int argc, const char *argv[])
         derFilter[i] = FilteredDifferentiator(10., 5., this->fSample);
 
     this->pre_start();
-    this->pubThread = std::thread(&CyberZooMocapClient::publish_loop, this);
-    this->keyThread = std::thread(&CyberZooMocapClient::keystroke_loop, this);
+    this->pubThread = std::thread(&UnifiedMocapClient::publish_loop, this);
+    this->keyThread = std::thread(&UnifiedMocapClient::keystroke_loop, this);
     this->post_start();
     //pub.join();
 }
 
-void CyberZooMocapClient::read_po(int argc, char const *argv[])
+void UnifiedMocapClient::read_po(int argc, char const *argv[])
 {
     namespace po = boost::program_options;
     po::options_description desc("Allowed options");
@@ -216,7 +246,9 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         ("publish_frequency,f", po::value<float>(), "publishing frequency of the MoCap odometry")
         ("streaming_ids,s", po::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to track")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
-        ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration[right, far_side, left, near_side]")
+        ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration [right, far_side, left, near_side]")
+        ("craft_nose,n", po::value<std::string>(), "direction of aircraft nose when creating the rigid body in Motive [right, far_side, left, near_side]")
+        ("test", "Send test data instead")
     ;
 
     // Adding any extra program options from the sub-class
@@ -227,7 +259,7 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     po::notify(vm);    
 
     if (vm.count("help")) {
-        std::cout << desc << "\n";
+        std::cout << desc << std::endl;
         exit(0);
     }
 
@@ -250,9 +282,8 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     }
     else
     {
-        std::cout << "Streaming IDs not set, defaulting to";
-        for(unsigned int id : this->streaming_ids) std::cout << " " << id << " ";
-        std::cout << std::endl;
+        std::cout << "Streaming IDs not set" <<std::endl;
+        exit(1);
     }
 
     if(vm.count("coordinate_system"))
@@ -260,25 +291,14 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
         std::string co_name = vm["coordinate_system"].as<std::string>();
         boost::algorithm::to_lower(co_name);
 
-        if(co_name.compare("unchanged") == 0)
-        {
-            this->co = CoordinateSystem::UNCHANGED;
-        }
-        else if(co_name.compare("ned") == 0)
-        {
-            this->co = CoordinateSystem::NED;
-        }else if (co_name.compare("enu") == 0)
-        {
-            this->co = CoordinateSystem::ENU;
-        }
-        else
-        {
+        if(co_name.compare("unchanged") == 0) { this->co = CoordinateSystem::UNCHANGED; }
+        else if(co_name.compare("ned") == 0) { this->co = CoordinateSystem::NED; }
+        else if (co_name.compare("enu") == 0) { this->co = CoordinateSystem::ENU; }
+        else {
             std::cout << "Coordinate system " << co_name << " not definied. Exiting" << std::endl;
             std::raise(SIGINT);
         }
-        
         std::cout << "Coordinate system set to " << this->co << std::endl;
-
     }
     else
     {
@@ -293,33 +313,76 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
 
         if(le.compare("right") == 0)
         {
-            this->long_edge = LongEdge::RIGHT;
+            this->long_edge = ArenaDirection::RIGHT;
         }
         else if(le.compare("far_side") == 0)
         {
-            this->long_edge = LongEdge::FAR_SIDE;
+            this->long_edge = ArenaDirection::FAR_SIDE;
         }
         else if (le.compare("left") == 0)
         {
-            this->long_edge = LongEdge::LEFT;
+            this->long_edge = ArenaDirection::LEFT;
         }
         else if (le.compare("near_side") == 0)
         {
-            this->long_edge = LongEdge::NEAR_SIDE;
+            this->long_edge = ArenaDirection::NEAR_SIDE;
         }
         else
         {
             std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
             std::raise(SIGINT);
         }
-
         std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
-
     }
     else
     {
         std::cout << "Long Edge direction not set, defaulting to "
                   << this->long_edge << std::endl;
+    }
+
+    if(vm.count("craft_nose"))
+    {
+        std::string le = vm["craft_nose"].as<std::string>();
+        boost::algorithm::to_lower(le);
+
+        if(le.compare("right") == 0)
+        {
+            this->craft_nose = ArenaDirection::RIGHT;
+        }
+        else if(le.compare("far_side") == 0)
+        {
+            this->craft_nose = ArenaDirection::FAR_SIDE;
+        }
+        else if (le.compare("left") == 0)
+        {
+            this->craft_nose = ArenaDirection::LEFT;
+        }
+        else if (le.compare("near_side") == 0)
+        {
+            this->craft_nose = ArenaDirection::NEAR_SIDE;
+        }
+        else
+        {
+            std::cout << "A/C Nose Direction " << le << " not definied. Exiting" << std::endl;
+            std::raise(SIGINT);
+        }
+
+        std::cout << "A/C nose direction set to " << this->craft_nose << std::endl;
+
+    }
+    else
+    {
+        std::cout << "A/C nose direction not set, defaulting to "
+                  << this->craft_nose << std::endl;
+    }
+
+    if(vm.count("test"))
+    {
+        std::cout << "Sending test data instead of attempting Motive Connect" << std::endl;
+        this->testMode = true;
+        this->upAxis = UpAxis::Y;
+        this->fSample = 100;
+        this->serverConfig.HighResClockFrequency = 1e6;
     }
 
     // process streaming ids
@@ -333,35 +396,57 @@ void CyberZooMocapClient::read_po(int argc, char const *argv[])
     this->parse_extra_po(vm);
 }
 
-void CyberZooMocapClient::print_startup() const
+void UnifiedMocapClient::print_startup()
 {
+    // generator and font: https://patorjk.com/software/taag/#p=display&f=Small&t=Type%20Something%20
     std::cout<< R"(
-    ####################################################
-    ##      _____     __          ____  ____  ____    ## 
-    ##     / ___/_ __/ /  ___ ___/_  / / __ \/ __ \   ##
-    ##    / /__/ // / _ \/ -_) __// /_/ /_/ / /_/ /   ##
-    ##    \___/\_, /_.__/\__/_/  /___/\____/\____/    ##
-    ##        /___/                                   ##
-    ##                                                ##
-    ####################################################
-    )" << '\n';
+#################################################################################
+##  _   _      _  __ _        _ __  __                    ___ _ _         _    ##
+## | | | |_ _ (_)/ _(_)___ __| |  \/  |___  __ __ _ _ __ / __| (_)___ _ _| |_  ##
+## | |_| | ' \| |  _| / -_) _` | |\/| / _ \/ _/ _` | '_ \ (__| | / -_) ' \  _| ##
+##  \___/|_||_|_|_| |_\___\__,_|_|  |_\___/\__\__,_| .__/\___|_|_\___|_||_\__| ##
+##                                                 |_|                         ##)";
 }
 
-void CyberZooMocapClient::print_coordinate_system() const
+void UnifiedMocapClient::print_coordinate_system() const
 {
-    // TODO print coordinate systemes based on chosen options
+    // There's probably a better way to do this but I can't think
+    // of it. So a bunch of nested switch-case statements it is.
     std::cout<< R"( 
                far
      +──────────────────────────+
+     │                          │)";
+    switch(this->craft_nose)
+    {
+        case ArenaDirection::RIGHT:
+            std::cout << R"(
      │                          │
-     │        ⊙ ⊙               │
-     │       ⊙ + ⊙              │
-     │        ⊙ ⊙               │
+     │       [craft] ▶          │
+     │                          │)";
+            break;
+        case ArenaDirection::FAR_SIDE:
+            std::cout << R"(
+     │            ▲             │
+     │         [craft]          │
+     │                          │)";
+            break;
+        case ArenaDirection::LEFT:
+            std::cout << R"(
+     │                          │
+     │       ◀ [craft]          │
+     │                          │)";
+            break;
+        case ArenaDirection::NEAR_SIDE:
+            std::cout << R"(
+     │                          │
+     │         [craft]          │
+     │            ▼             │)";
+            break;
+    }
+
+    std::cout << R"(
 left │                          │ right )";
 
-    // There's probably a better way to do this but I can't think
-    // of it. So a bunch of nested switch-case statements it is.
-    
     // If the upAxis is not detected the CO is not well defined
     // and we can't draw the coordinate system
     if(this->upAxis == UpAxis::NOTDETECTED)
@@ -382,44 +467,47 @@ left │                          │ right )";
                     std::cout << R"( 
      │      ↑                   │
      │    x ⊙ →                 │
+     │                          │
      │    y-z Unchanged         │)";
                     break;
                 case UpAxis::Y:
                     std::cout << R"( 
      │      ↑                   │
      │    y ⊙ →                 │
+     │                          │
      │    x-z Unchanged         │)";
                     break;
                 case UpAxis::Z:
                     std::cout << R"( 
      │      ↑                   │
      │    z ⊙ →                 │
-     │    y-z Unchanged         │)";
+     │                          │
+     │    x-y Unchanged         │)";
                     break;
             }
             break;
         case CoordinateSystem::NED:
             switch (this->long_edge)
             {
-                case LongEdge::RIGHT:
+                case ArenaDirection::RIGHT:
                     std::cout << R"( 
      │                          │
      │   z  ⓧ → x              │
      │    y ↓                   │)";
                     break;
-                case LongEdge::FAR_SIDE:
+                case ArenaDirection::FAR_SIDE:
                     std::cout << R"( 
      │    x ↑                   │
      │   z  ⓧ → y              │
      │                          │)";
                     break;
-                case LongEdge::LEFT:
+                case ArenaDirection::LEFT:
                     std::cout << R"( 
      │    y ↑                   │
      │  x ← ⓧ z                │
      │                          │)";
                     break;
-                case LongEdge::NEAR_SIDE:
+                case ArenaDirection::NEAR_SIDE:
                     std::cout << R"( 
      │                          │
      │  y ← ⓧ z                │
@@ -430,25 +518,25 @@ left │                          │ right )";
         case CoordinateSystem::ENU:
             switch (this->long_edge)
             {
-                case LongEdge::RIGHT:
+                case ArenaDirection::RIGHT:
                     std::cout << R"( 
      │    y ↑                   │
      │   z  ⊙ → x               │
      │                          │)";
                     break;
-                case LongEdge::FAR_SIDE:
+                case ArenaDirection::FAR_SIDE:
                     std::cout << R"( 
      │    x ↑                   │
      │  y ← ⊙ z                 │
      │                          │)";
                     break;
-                case LongEdge::LEFT:
+                case ArenaDirection::LEFT:
                     std::cout << R"( 
      │                          │
      │  x ← ⊙ z                 │
      │    y ↓                   │)";
                     break;
-                case LongEdge::NEAR_SIDE:
+                case ArenaDirection::NEAR_SIDE:
                     std::cout << R"( 
      │                          │
      │   z  ⊙ → y               │
@@ -464,10 +552,10 @@ left │                          │ right )";
      +──────────────────────────+
      │    Observers  (near)     │
      └──────────────────────────┘
-    )" << '\n';
+    )" << std::endl;
 }
 
-ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
+ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
 {
     ErrorCode ret;
     static constexpr unsigned int DISCOVERY_TIMEOUT = 1000;
@@ -545,14 +633,13 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     if (ret == ErrorCode_OK) {
         std::cout<<"Successful!"<<std::endl;
     } else {
-#ifdef USE_DISCOVERY
         std::cout<<"Failed with unknown error code "<< ret <<std::endl;
-#else
+/*
         std::cout<<"Failed with error code "<< ret <<std::endl;
         std::cout<<std::endl<<"Troubleshooting: " << std::endl;
         std::cout<<"1. Verify connected to Motive network" << std::endl;
         std::cout<<"2. Verify that 'interface' is NOT set to 'local' in Motive 'Data Streaming Pane'" << std::endl;
-#endif
+*/
         return ret;
     }
 
@@ -582,7 +669,11 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
     if (ret == ErrorCode_OK) {
         this->fSample = (double) *((float*)response);
-        std::cout << this->fSample << "Hz" << std::endl;
+        std::cout << this->fSample << "Hz";
+        if (this->fSample < (1.0 / this->publish_dt))
+            std::cout << " WARNING: Publish frequency was set higher which has no effect: incomming messages will only be published once.";
+        
+        std::cout << std::endl;
     } else {
         std::cout << "Error code " << ret << std::endl;
         return ret;
@@ -608,7 +699,7 @@ ErrorCode CyberZooMocapClient::connectAndDetectServerSettings()
     return ErrorCode_OK;
 }
 
-pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
+pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
 {
     pose_t result(newPose);
     
@@ -672,10 +763,10 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
         switch(this->long_edge)
         {
 
-            case LongEdge::RIGHT:
+            case ArenaDirection::RIGHT:
                 // We do nothing because this is what we want to have
                 break;
-            case LongEdge::FAR_SIDE:
+            case ArenaDirection::FAR_SIDE:
                 // Rotate to align in the yaw plane
                 result.x = z_copy;
                 result.z = -x_copy;
@@ -683,7 +774,7 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
                 result.qx = qz_copy;
                 result.qz = -qx_copy;
                 break;
-            case LongEdge::LEFT:
+            case ArenaDirection::LEFT:
                 // Rotate to align in the yaw plane
                 result.x = -x_copy;
                 result.z = -z_copy;
@@ -691,7 +782,7 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
                 result.qx = -qx_copy;
                 result.qz = -qz_copy;
                 break;
-            case LongEdge::NEAR_SIDE:
+            case ArenaDirection::NEAR_SIDE:
                 // Rotate to align in the yaw plane
                 result.x = -z_copy;
                 result.z = x_copy;
@@ -700,6 +791,47 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
                 result.qz = qx_copy;
                 break;
         }
+
+        qw_copy = result.qw;
+        qx_copy = result.qx;
+        qy_copy = result.qy;
+        qz_copy = result.qz;
+
+        float nose_rot_qw;
+        float nose_rot_qx = 0.;
+        float nose_rot_qy;
+        float nose_rot_qz = 0.;
+
+        switch(this->craft_nose) {
+            case ArenaDirection::RIGHT:
+                // left hand pi/2 rotation around Y axis (up)
+                nose_rot_qw = -sqrt(2.0)/2.0;
+                nose_rot_qy =  sqrt(2.0)/2.0;
+                break;
+            case ArenaDirection::FAR_SIDE:
+                // no change, because this is what we have
+                nose_rot_qw = 1.0;
+                nose_rot_qy = 0.0;
+                break;
+            case ArenaDirection::LEFT:
+                // right hand pi/2 rotation around Y axis (up)
+                nose_rot_qw = sqrt(2.0)/2.0;
+                nose_rot_qy = sqrt(2.0)/2.0;
+                break;
+            case ArenaDirection::NEAR_SIDE:
+                // pi rotation around Y
+                nose_rot_qw =  0.0;
+                nose_rot_qy = -1.0;
+                break;
+        }
+
+        // perform nose rotation as quaternion rotation https://gegcalculators.com/quaternion-multiplication-calculator-online/
+        // result = q_copy * nose_rot  --> use some library here? does boost have quats?
+        result.qw = qw_copy * nose_rot_qw - qx_copy * nose_rot_qx -  qy_copy * nose_rot_qy - qz_copy * nose_rot_qz;
+        result.qx = qw_copy * nose_rot_qx + qx_copy * nose_rot_qw +  qy_copy * nose_rot_qz - qz_copy * nose_rot_qy;
+        result.qy = qw_copy * nose_rot_qy - qx_copy * nose_rot_qz +  qy_copy * nose_rot_qw + qz_copy * nose_rot_qx;
+        result.qz = qw_copy * nose_rot_qz + qx_copy * nose_rot_qy -  qy_copy * nose_rot_qx + qz_copy * nose_rot_qw;
+
 
         x_copy = result.x;
         y_copy = result.y;
@@ -740,7 +872,7 @@ pose_t CyberZooMocapClient::transform_pose(const pose_t newPose)
     return result;
 }
 
-void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
+void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 {
     // get timestamp
     uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency * 1e-6);
@@ -754,12 +886,8 @@ void CyberZooMocapClient::natnet_data_handler(sFrameOfMocapData* data)
             continue; // untracked by us
 
         bool bTrackingValid = data->RigidBodies[i].params & 0x01;
-        if (bTrackingValid) {
-            validRB[idx] = true;
-        } else {
-            validRB[idx] = false;
+        if (!bTrackingValid)
             continue;
-        }
 
         if ( (this->printMessages) && (!printedHeader) ) {
             std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us. Tracked bodies:" << std::endl;
