@@ -30,6 +30,7 @@ Prerequisites vary per client. Currently, these are known:
 
 |   Client  | Known Prerequisites                                                                      |
 |:---------:|------------------------------------------------------------------------------------------|
+| `all`     | `libboost-all-dev` installed with `apt`                                       |
 | `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
 | `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
 | `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
