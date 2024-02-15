@@ -117,12 +117,14 @@ public:
                 // Init Message
                 geometry_msgs::msg::PoseStamped pose_msg{};
                 geometry_msgs::msg::TwistStamped twist_msg{};
-                
+
                 // Transform the pose timestamp to unix time
                 double seconds = this->seconds_since_mocap_ts(pose.timeUs);
                 uint32_t seconds_t = static_cast<int32_t>(seconds);
                 uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
                 rclcpp::Time stamp = (rclcpp::Clock(RCL_SYSTEM_TIME).now() - rclcpp::Duration(seconds_t, nanoseconds_t));
+
+                // Init msg timestamp
                 pose_msg.header.stamp = stamp;
                 twist_msg.header.stamp = stamp;
 

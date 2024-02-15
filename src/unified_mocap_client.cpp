@@ -113,6 +113,7 @@ void UnifiedMocapClient::post_start()
 {
     // must be blocking!
     this->pubThread.join();
+    this->keyThread.join();
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
@@ -129,7 +130,10 @@ void UnifiedMocapClient::parse_extra_po(const boost::program_options::variables_
 
 double UnifiedMocapClient::seconds_since_mocap_ts(uint64_t us)
 {
-   return this->pClient->SecondsSinceHostTimestamp(us);
+   if(this->testMode)
+        return 0.0;
+   else
+        return this->pClient->SecondsSinceHostTimestamp(us);
 }
 
 void UnifiedMocapClient::publish_loop()
@@ -234,7 +238,6 @@ void UnifiedMocapClient::start(int argc, const char *argv[])
     this->pubThread = std::thread(&UnifiedMocapClient::publish_loop, this);
     this->keyThread = std::thread(&UnifiedMocapClient::keystroke_loop, this);
     this->post_start();
-    //pub.join();
 }
 
 void UnifiedMocapClient::read_po(int argc, char const *argv[])
