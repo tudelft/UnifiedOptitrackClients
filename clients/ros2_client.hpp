@@ -10,7 +10,6 @@
 #ifdef USE_CLIENT_ROS2PX4
 #include <chrono>
 #include "px4_msgs/msg/vehicle_odometry.hpp"
-#include "px4_msgs/msg/timesync_status.hpp"
 #endif
 
 class NatNet2Ros2 : public UnifiedMocapClient, public rclcpp::Node
@@ -96,7 +95,6 @@ public:
 
 #ifdef USE_CLIENT_ROS2PX4
         this->_px4_publisher = this->create_publisher<px4_msgs::msg::VehicleOdometry>("/fmu/in/vehicle_visual_odometry", 10);
-        this->_timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", rclcpp::SensorDataQoS(), std::bind(&NatNet2Ros2::_timesync_callback, this, std::placeholders::_1));
 #endif
     }
 
@@ -160,7 +158,7 @@ public:
                     px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
 
                     // Timestamp since system start (px4) in microseconds
-                    px4_vehicle_odometry.timestamp = this->_timestamp_remote + (stamp - this->_timestamp_local).nanoseconds() * 1e-3;
+                    px4_vehicle_odometry.timestamp = stamp.nanoseconds() * 1e-3;
                     px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
 
                     // Frame definition
@@ -198,20 +196,10 @@ private:
     std::vector<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr> _twist_publishers;
 
 #ifdef USE_CLIENT_ROS2PX4
-    rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr _timesync_sub;
     rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr _px4_publisher;
-
-    std::atomic<uint64_t> _timestamp_remote;
-    rclcpp::Time _timestamp_local;
 
     std::vector<unsigned int> _px4_streaming_ids;
 
-    //Callback function
-    void _timesync_callback(const px4_msgs::msg::TimesyncStatus::SharedPtr msg)
-    {
-        this->_timestamp_local = rclcpp::Clock(RCL_SYSTEM_TIME).now();
-        this->_timestamp_remote.store(msg->timestamp);
-    }
 
     pose_t toNED(const pose_t pose) const
     {
