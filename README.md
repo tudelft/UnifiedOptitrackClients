@@ -9,33 +9,8 @@ Currently supported clients:
 | `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `natnet2ros2 --publish_topic UAV`     |
 | `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `natnet2ros2px4 -f 120`               |
 
-Building natively
--------------------
 
-Build all with:
-```shell
-mkdir build && cd build
-cmake .. && make
-```
-
-Build only some with (for example):
-```shell
-mkdir build && cd build
-cmake -D'CLIENTS=console;ivy;ros2;ros2px4' .. && make
-```
-
-## Prerequisites
-
-Prerequisites vary per client. Currently, these are known:
-
-|   Client  | Known Prerequisites                                                                      |
-|:---------:|------------------------------------------------------------------------------------------|
-| `all`     | `libboost-all-dev` installed with `apt`                                       |
-| `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
-| `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
-| `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
-
-Build using Docker
+Build using Docker (Recommended)
 ------------------
 
 Each client has its own `dockerfile` to make compilation across platforms easier. For this first install docker as is explained on the official [website](https://docs.docker.com/engine/install).
@@ -49,6 +24,30 @@ Afterward you can run the docker image with:
 
     docker run -it --rm --net host logclient -f cmdline args of your choice
 
+Building natively
+-------------------
+
+Prerequisites vary per client. Currently, these are known:
+
+|   Client  | Known Prerequisites                                                                      |
+|:---------:|------------------------------------------------------------------------------------------|
+| `all`     | `libboost-all-dev` installed with `apt`                                       |
+| `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
+| `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
+| `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
+
+
+Build all with:
+```shell
+mkdir build && cd build
+cmake .. && make
+```
+
+Build only some with (for example):
+```shell
+mkdir build && cd build
+cmake -D'CLIENTS=console;ivy;ros2;ros2px4' .. && make
+```
 
 How to write your own client?
 ==============================
@@ -56,9 +55,11 @@ How to write your own client?
 To write your own client it has to inheret from the base class `UnifiedMocapClient` defined in `unified_mocap_client.hpp` and needs to implement the 
 
     void publish_data()
+    
 function. It _can_ also implement 
 
     void add_extra_po(boost::program_options::options_description &desc)
     void parse_extra_po(const boost::program_options::variables_map &vm)
+
 Afterward, the client needs to be added to the `CMakeList.txt` file and added to the main executable `main.cpp` using compile options. A simple example of how to do this is the `ConsoleClient` defined in `clients/console_client.hpp`.
     
