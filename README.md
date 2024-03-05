@@ -42,12 +42,17 @@ Each client has its own `dockerfile` to make compilation across platforms easier
 
 Then you can build your docker image using e.g., 
 
-    docker build -t logclient . -f ./dockerfiles/log.dockerfile 
+    docker build -t consoleclient . -f ./dockerfiles/console.dockerfile 
 
 Where `-t` defines the name of the docker image and `-f` defines the file path to the `dockerfile`.
-Afterward you can run the docker image with:
+Afterward, you can run the docker image with:
 
-    docker run -it --rm --net host logclient -f cmdline args of your choice
+    docker run -it --rm --net host consoleclient cmdline args of your choice
+
+When running the logging client with docker you have to mount a volume such that the written file will persist on the host machine. 
+The client expects the volume to be mounted under `/data`, i.e. the command would be something like to save the data in the current directory:
+
+    docker run -it --net=host -v ./:/data logclient -s 1 -o data.csv
 
 
 How to write your own client?
