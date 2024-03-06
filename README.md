@@ -9,6 +9,10 @@ Currently supported clients:
 | `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `mocap2ros2 --publish_topic UAV`     |
 | `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `mocap2ros2px4 -f 120`               |
 
+Currently supported platforms:
+
+Ubuntu >= 22.04 on x86
+
 Building natively
 -------------------
 
