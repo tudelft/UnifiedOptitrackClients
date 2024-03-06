@@ -9,7 +9,7 @@ if(NOT DEFINED CLIENTS)
     set(CLIENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
-add_executable(client src/main.cpp src/unified_mocap_client.cpp)
+add_executable(client src/main.cpp src/pose_calculations.cpp src/unified_mocap_client.cpp)
 
 foreach(x ${CLIENTS})
     string(TOUPPER ${x} uppercase)
@@ -46,7 +46,6 @@ add_library(natnet_sdk SHARED IMPORTED)
 set_target_properties(natnet_sdk PROPERTIES IMPORTED_LOCATION ${natnet_sdk_content_SOURCE_DIR}/lib/libNatNet.so)
 target_include_directories(natnet_sdk INTERFACE ${natnet_sdk_content_SOURCE_DIR}/include)
 target_link_libraries(client natnet_sdk)
-
 
 # Client-specific stuff
 if ("ivy" IN_LIST CLIENTS)

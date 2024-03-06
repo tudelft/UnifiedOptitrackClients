@@ -2,6 +2,7 @@
 #define H_POSE_CALCULATIONS
 
 #include <iostream>
+#include <csignal>
 #include <cmath>
 
 typedef struct pose_s {
@@ -25,6 +26,17 @@ typedef struct pose_der_s {
     float wz;
 } pose_der_t;
 
+enum CoordinateSystem { UNCHANGED=0, NED, ENU};
+enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
+enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
+
+pose_t transform_pose(const CoordinateSystem co,
+                      const UpAxis up_axis,
+                      const ArenaDirection long_edge,
+                      const ArenaDirection craft_nose,
+                      const pose_t newPose);
+
+
 class PureDifferentiator
 {
     protected:
@@ -43,32 +55,7 @@ class PureDifferentiator
         };
 
     protected:
-        void newSample(pose_t newPose) {
-            int64_t delta = newPose.timeUs - _pose.timeUs; // does this deal with overflows?
-
-            if ((delta < 100) || (delta > 2e6) || (_pose.timeUs == 0)) {
-                // likely uninitialized, or very old data
-                _pose = newPose;
-                _valid = false;
-                return;
-            }
-            _valid = true;
-
-            double iDelta = 1.0 / (static_cast<double>(delta) * 1e-6f);
-            _unfiltered.timeUs = newPose.timeUs;
-            _unfiltered.x = iDelta * (newPose.x - _pose.x);
-            _unfiltered.y = iDelta * (newPose.y - _pose.y);
-            _unfiltered.z = iDelta * (newPose.z - _pose.z);
-
-            // https://mariogc.com/post/angular-velocity-quaternions/
-            double q1[4] = {_pose.qw, _pose.qx, _pose.qy, _pose.qz};
-            double q2[4] = {newPose.qw, newPose.qx, newPose.qy, newPose.qz};
-            _unfiltered.wx = 2.*iDelta * (q1[0]*q2[1] - q1[1]*q2[0] - q1[2]*q2[3] + q1[3]*q2[2]);
-            _unfiltered.wy = 2.*iDelta * (q1[0]*q2[2] + q1[1]*q2[3] - q1[2]*q2[0] - q1[3]*q2[1]);
-            _unfiltered.wz = 2.*iDelta * (q1[0]*q2[3] - q1[1]*q2[2] + q1[2]*q2[1] - q1[3]*q2[0]);
-
-            _pose = newPose;
-        };
+        void newSample(pose_t newPose);
 };
 
 class FilteredDifferentiator : public PureDifferentiator
@@ -83,51 +70,14 @@ class FilteredDifferentiator : public PureDifferentiator
         bool _initialized;
 
     public:
-        FilteredDifferentiator(double fBreakVel, double fBreakRate, double fSample) : PureDifferentiator(), _initialized{false}
-        {
-            _fSample = fSample;
-            _fBreakVel = fBreakVel;
-            _fBreakRate = fBreakRate;
-            if (fBreakVel < 1e-3) {
-                _kVel = 0.;
-                std::cout << "WARNING: Velocity lowpass filter cannot be realized and will be disabled. Check fBreakVel." << std::endl;
-                return;
-            }
-            if (fBreakRate < 1e-3) {
-                _kVel = 0.;
-                std::cout << "WARNING: Angular rate lowpass filter cannot be realized and will be disabled. Check fBreakRate." << std::endl;
-                return;
-            }
-
-            // https://en.wikipedia.org/wiki/Low-pass_filter#Simple_infinite_impulse_response_filter
-            _kVel = 1. / (1. + _fSample / (2. * M_PI * _fBreakVel) );
-            _kRate = 1. / (1. + _fSample / (2. * M_PI * _fBreakRate) );
-        }
+        FilteredDifferentiator(double fBreakVel, double fBreakRate, double fSample);
 
         FilteredDifferentiator() : FilteredDifferentiator(1., 1., 1.) {
             // C++11
             // probably you can instead use a vector instead of a array to store FilteredDifferentiator instances?
         }
 
-        pose_der_t apply(pose_t newPose) {
-            newSample(newPose);
-            if (!_valid)
-                return _filtered;
-
-            if (_initialized) {
-                _filtered.x = _kVel * _filtered.x  +  (1.-_kVel) * _unfiltered.x; 
-                _filtered.y = _kVel * _filtered.y  +  (1.-_kVel) * _unfiltered.y; 
-                _filtered.z = _kVel * _filtered.z  +  (1.-_kVel) * _unfiltered.z; 
-                _filtered.wx = _kRate * _filtered.wx  +  (1.-_kRate) * _unfiltered.wx;
-                _filtered.wy = _kRate * _filtered.wy  +  (1.-_kRate) * _unfiltered.wy; 
-                _filtered.wz = _kRate * _filtered.wz  +  (1.-_kRate) * _unfiltered.wz; 
-            } else {
-                _filtered = _unfiltered;
-                _initialized = true;
-            }
-
-            return _filtered;
-        };
+        pose_der_t apply(pose_t newPose);
 };
 
 #endif // H_POSE_CALCULATINOS
