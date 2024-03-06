@@ -2,6 +2,7 @@
 #define H_POSE_CALCULATIONS
 
 #include <iostream>
+#include <csignal>
 #include <cmath>
 
 typedef struct pose_s {
@@ -24,6 +25,188 @@ typedef struct pose_der_s {
     float wy;
     float wz;
 } pose_der_t;
+
+enum CoordinateSystem { UNCHANGED=0, NED, ENU};
+enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
+enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
+
+static pose_t transform_pose(const CoordinateSystem co,
+                             const UpAxis up_axis,
+                             const ArenaDirection long_edge,
+                             const ArenaDirection craft_nose,
+                             const pose_t newPose)
+{
+    pose_t result(newPose);
+
+    if(co != CoordinateSystem::UNCHANGED)
+    {
+
+        float x_copy = result.x;
+        float y_copy = result.y;
+        float z_copy = result.z;
+
+        float qw_copy = result.qw;
+        float qx_copy = result.qx;
+        float qy_copy = result.qy;
+        float qz_copy = result.qz;
+
+        switch(up_axis)
+        {
+            case UpAxis::X:
+                // Transform from X-Up to Y-Up
+                result.x = -y_copy;
+                result.y = x_copy;
+                result.z = z_copy;
+
+                result.qw = qw_copy;
+                result.qx = -qy_copy;
+                result.qy = qx_copy;
+                result.qz = qz_copy;
+                break;
+            case UpAxis::Y:
+                // We do nothing because this is what we want to have
+                break;
+            case UpAxis::Z:
+                // Transform from X-Up to Y-Up
+                result.x = x_copy;
+                result.y = z_copy;
+                result.z = -y_copy;
+
+                result.qw = qw_copy;
+                result.qx = qx_copy;
+                result.qy = qz_copy;
+                result.qz = -qy_copy;
+                break;
+            case UpAxis::NOTDETECTED:
+                // The up axis is not known. Abort
+                std::cerr << "The up-axis is not detected. Aborting." << std::endl;
+                std::raise(SIGINT);
+                break;
+            default:
+                break;
+        }
+
+        x_copy = result.x;
+        y_copy = result.y;
+        z_copy = result.z;
+
+        qw_copy = result.qw;
+        qx_copy = result.qx;
+        qy_copy = result.qy;
+        qz_copy = result.qz;
+
+        switch(long_edge)
+        {
+
+            case ArenaDirection::RIGHT:
+                // We do nothing because this is what we want to have
+                break;
+            case ArenaDirection::FAR_SIDE:
+                // Rotate to align in the yaw plane
+                result.x = z_copy;
+                result.z = -x_copy;
+
+                result.qx = qz_copy;
+                result.qz = -qx_copy;
+                break;
+            case ArenaDirection::LEFT:
+                // Rotate to align in the yaw plane
+                result.x = -x_copy;
+                result.z = -z_copy;
+
+                result.qx = -qx_copy;
+                result.qz = -qz_copy;
+                break;
+            case ArenaDirection::NEAR_SIDE:
+                // Rotate to align in the yaw plane
+                result.x = -z_copy;
+                result.z = x_copy;
+
+                result.qx = -qz_copy;
+                result.qz = qx_copy;
+                break;
+        }
+
+        qw_copy = result.qw;
+        qx_copy = result.qx;
+        qy_copy = result.qy;
+        qz_copy = result.qz;
+
+        float nose_rot_qw;
+        float nose_rot_qx = 0.;
+        float nose_rot_qy;
+        float nose_rot_qz = 0.;
+
+        switch(craft_nose) {
+            case ArenaDirection::RIGHT:
+                // left hand pi/2 rotation around Y axis (up)
+                nose_rot_qw = -sqrt(2.0)/2.0;
+                nose_rot_qy =  sqrt(2.0)/2.0;
+                break;
+            case ArenaDirection::FAR_SIDE:
+                // no change, because this is what we have
+                nose_rot_qw = 1.0;
+                nose_rot_qy = 0.0;
+                break;
+            case ArenaDirection::LEFT:
+                // right hand pi/2 rotation around Y axis (up)
+                nose_rot_qw = sqrt(2.0)/2.0;
+                nose_rot_qy = sqrt(2.0)/2.0;
+                break;
+            case ArenaDirection::NEAR_SIDE:
+                // pi rotation around Y
+                nose_rot_qw =  0.0;
+                nose_rot_qy = -1.0;
+                break;
+        }
+
+        // perform nose rotation as quaternion rotation https://gegcalculators.com/quaternion-multiplication-calculator-online/
+        // result = q_copy * nose_rot  --> use some library here? does boost have quats?
+        result.qw = qw_copy * nose_rot_qw - qx_copy * nose_rot_qx -  qy_copy * nose_rot_qy - qz_copy * nose_rot_qz;
+        result.qx = qw_copy * nose_rot_qx + qx_copy * nose_rot_qw +  qy_copy * nose_rot_qz - qz_copy * nose_rot_qy;
+        result.qy = qw_copy * nose_rot_qy - qx_copy * nose_rot_qz +  qy_copy * nose_rot_qw + qz_copy * nose_rot_qx;
+        result.qz = qw_copy * nose_rot_qz + qx_copy * nose_rot_qy -  qy_copy * nose_rot_qx + qz_copy * nose_rot_qw;
+
+
+        x_copy = result.x;
+        y_copy = result.y;
+        z_copy = result.z;
+
+        qw_copy = result.qw;
+        qx_copy = result.qx;
+        qy_copy = result.qy;
+        qz_copy = result.qz;
+
+        switch(co)
+        {
+            case CoordinateSystem::ENU:
+                // Transform to ENU
+                result.x = z_copy;
+                result.y = x_copy;
+                result.z = y_copy;
+
+                result.qx = qz_copy;
+                result.qy = qx_copy;
+                result.qz = qy_copy;
+                break;
+            case CoordinateSystem::NED:
+                // Transform to NED
+                result.x = x_copy;
+                result.y = z_copy;
+                result.z = -y_copy;
+
+                result.qx = qx_copy;
+                result.qy = qz_copy;
+                result.qz = -qy_copy;
+                break;
+            default:
+                break;
+        }
+    }
+
+    return result;
+}
+
 
 class PureDifferentiator
 {
