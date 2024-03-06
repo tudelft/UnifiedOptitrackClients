@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
     {
-        "name": "natnet2ivy",
+        "name": "mocap2ivy",
         "type": "cppdbg",
         "request": "launch",
-        "program": "${workspaceFolder}/build/natnet2ivy",
+        "program": "${workspaceFolder}/build/mocap2ivy",
         "args": ["-s", "125", "--ac_id", "2"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
@@ -29,10 +29,10 @@
         ]
     },
     {
-        "name": "natnet2debug",
+        "name": "mocap2debug",
         "type": "cppdbg",
         "request": "launch",
-        "program": "${workspaceFolder}/build/natnet2debug",
+        "program": "${workspaceFolder}/build/mocap2debug",
         "args": ["-s", "125"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
@@ -53,10 +53,10 @@
         ]
     },
     {
-        "name": "natnet2udp",
+        "name": "mocap2udp",
         "type": "cppdbg",
         "request": "launch",
-        "program": "${workspaceFolder}/build/natnet2udp",
+        "program": "${workspaceFolder}/build/mocap2udp",
         "args": ["-s", "125", "-i", "127.0.0.1", "-p", "5005"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",

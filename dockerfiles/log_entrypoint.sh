@@ -16,4 +16,4 @@ for arg in "$@"; do
 done
 
 cd /data
-/home/build/natnet2log "$@"
+/home/build/mocap2log "$@"

@@ -13,10 +13,10 @@
 #include "px4_msgs/msg/timesync_status.hpp"
 #endif
 
-class NatNet2Ros2 : public UnifiedMocapClient, public rclcpp::Node
+class Mocap2Ros2 : public UnifiedMocapClient, public rclcpp::Node
 {
 public:
-    NatNet2Ros2() : Node("mocap_publisher",
+    Mocap2Ros2() : Node("mocap_publisher",
                          rclcpp::NodeOptions().arguments(
                                 {"--ros-args",
                                 "--disable-rosout-logs",
@@ -96,7 +96,7 @@ public:
 
 #ifdef USE_CLIENT_ROS2PX4
         this->_px4_publisher = this->create_publisher<px4_msgs::msg::VehicleOdometry>("/fmu/in/vehicle_visual_odometry", 10);
-        this->_timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", rclcpp::SensorDataQoS(), std::bind(&NatNet2Ros2::_timesync_callback, this, std::placeholders::_1));
+        this->_timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", rclcpp::SensorDataQoS(), std::bind(&Mocap2Ros2::_timesync_callback, this, std::placeholders::_1));
 #endif
     }
 

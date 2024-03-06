@@ -6,10 +6,10 @@
 #include <unistd.h>
 #include <csignal>
 
-class NatNet2Ivy : public UnifiedMocapClient
+class Mocap2Ivy : public UnifiedMocapClient
 {
 public:
-    NatNet2Ivy()
+    Mocap2Ivy()
     {
         std::cout<< R"(
 ##  ___           ###############################################################
@@ -61,7 +61,7 @@ public:
 
     void pre_start() override
     {
-        IvyInit ("NatNet2Ivy", "NatNet2Ivy READY", NULL, NULL, NULL, NULL);
+        IvyInit ("Mocap2Ivy", "Mocap2Ivy READY", NULL, NULL, NULL, NULL);
         IvyStart(this->bip.c_str());
     }
 

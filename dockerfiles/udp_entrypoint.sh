@@ -1,2 +1,2 @@
 #!/bin/bash
-./build/natnet2udp "$@"
+./build/mocap2udp "$@"

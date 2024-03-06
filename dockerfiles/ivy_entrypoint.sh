@@ -1,2 +1,2 @@
 #!/bin/bash
-./build/natnet2ivy "$@"
+./build/mocap2ivy "$@"
