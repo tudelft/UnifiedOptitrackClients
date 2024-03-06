@@ -36,8 +36,8 @@ int main(int argc, char const *argv[])
     { 
         std::cout << "Shutting down... Done. " << std::endl;
 #if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)  
-        if (p.filename() == "natnet2ros2"
-            || p.filename() == "natnet2ros2px4")
+        if (p.filename() == "mocap2ros2"
+            || p.filename() == "mocap2ros2px4")
         {
             rclcpp::shutdown();
         }
@@ -48,33 +48,33 @@ int main(int argc, char const *argv[])
 	signal(SIGINT, signal_handler);
 
 #ifdef USE_CLIENT_CONSOLE
-    if (p.filename() == "natnet2console") {
-        NatNet2Console client = NatNet2Console();
+    if (p.filename() == "mocap2console") {
+        Mocap2Console client = Mocap2Console();
         client.start(argc, argv);
     } else
 #endif
 
 #ifdef USE_CLIENT_IVY
-    if (p.filename() == "natnet2ivy") {
-        NatNet2Ivy client = NatNet2Ivy(); client.start(argc, argv);
+    if (p.filename() == "mocap2ivy") {
+        Mocap2Ivy client = Mocap2Ivy(); client.start(argc, argv);
     } else 
 #endif
 
 #ifdef USE_CLIENT_UDP
-    if (p.filename() == "natnet2udp") {
-        NatNet2Udp client = NatNet2Udp(); client.start(argc, argv);
+    if (p.filename() == "mocap2udp") {
+        Mocap2Udp client = Mocap2Udp(); client.start(argc, argv);
     } else 
 #endif
 
 #ifdef USE_CLIENT_LOG
-    if (p.filename() == "natnet2log") {
-        NatNet2Log client = NatNet2Log(); client.start(argc, argv);
+    if (p.filename() == "mocap2log") {
+        Mocap2Log client = Mocap2Log(); client.start(argc, argv);
     } else 
 #endif
 
 #if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
 
-    if (p.filename() == "natnet2ros2" || p.filename() == "natnet2ros2px4") {
+    if (p.filename() == "mocap2ros2" || p.filename() == "mocap2ros2px4") {
         // Init ROS2
         rclcpp::init(argc, argv);
 
@@ -82,7 +82,7 @@ int main(int argc, char const *argv[])
         rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
 
         // Init Client
-        NatNet2Ros2 client = NatNet2Ros2();
+        Mocap2Ros2 client = Mocap2Ros2();
 
         // Start the thread
         client.start(argc, argv);

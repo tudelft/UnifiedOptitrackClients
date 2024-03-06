@@ -5,10 +5,10 @@
 
 using namespace boost::asio;
 
-class NatNet2Udp : public UnifiedMocapClient
+class Mocap2Udp : public UnifiedMocapClient
 {
 public:
-    NatNet2Udp() : _socket{_io_service}
+    Mocap2Udp() : _socket{_io_service}
     {
         std::cout<< R"(
 ##  _   _ ___  ___  #############################################################
@@ -18,7 +18,7 @@ public:
 ######################
 )" << std::endl;
     }
-    ~NatNet2Udp()
+    ~Mocap2Udp()
     {
         this->_socket.close();
     }

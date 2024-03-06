@@ -14,10 +14,10 @@ std::ostream& operator<<(std::ostream& lhs, LogType e) {
     return lhs;
 } 
 
-class NatNet2Log : public UnifiedMocapClient
+class Mocap2Log : public UnifiedMocapClient
 {
 public:
-    NatNet2Log() : _logType{LogType::CSV}
+    Mocap2Log() : _logType{LogType::CSV}
     {
         std::cout<< R"(
 ##  _               #############################################################
@@ -29,7 +29,7 @@ public:
 )" << std::endl;
     }
 
-    ~NatNet2Log() {
+    ~Mocap2Log() {
         if (_logFile.is_open())
             _logFile.close();
     }
@@ -46,7 +46,7 @@ private:
     void parse_extra_po(const boost::program_options::variables_map &vm) override
     {
         if (vm.count("filename")) {
-            this->_logFilename = std::string("/data/") + vm["filename"].as<std::string>();
+            this->_logFilename = vm["filename"].as<std::string>();
             std::cout << "Logfile set to " << this->_logFilename << std::endl;
         } else {
             std::cout << "Logfile argument not passed" << std::endl;

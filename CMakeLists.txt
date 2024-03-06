@@ -15,7 +15,7 @@ foreach(x ${CLIENTS})
     string(TOUPPER ${x} uppercase)
     add_definitions(-DUSE_CLIENT_${uppercase})
     ADD_CUSTOM_TARGET(${x}_symlink ALL
-                      COMMAND ${CMAKE_COMMAND} -E create_symlink client natnet2${x}
+                      COMMAND ${CMAKE_COMMAND} -E create_symlink client mocap2${x}
                       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endforeach()
 
