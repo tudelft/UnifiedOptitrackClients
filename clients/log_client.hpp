@@ -46,7 +46,7 @@ private:
     void parse_extra_po(const boost::program_options::variables_map &vm) override
     {
         if (vm.count("filename")) {
-            this->_logFilename = std::string("/data/") + vm["filename"].as<std::string>();
+            this->_logFilename = vm["filename"].as<std::string>();
             std::cout << "Logfile set to " << this->_logFilename << std::endl;
         } else {
             std::cout << "Logfile argument not passed" << std::endl;
