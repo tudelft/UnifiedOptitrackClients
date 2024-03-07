@@ -5,11 +5,12 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 
-class NatNet2Console : public UnifiedMocapClient
+class Mocap2Console : public UnifiedMocapClient
 {
 public:
-    NatNet2Console()
+    Mocap2Console()
     {
+        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
 ##   ___                  _      ################################################
 ##  / __|___ _ _  ___ ___| |___  ##
@@ -20,7 +21,7 @@ public:
         // do as little setup here as possible. Use pre_start instead
     }
 
-    ~NatNet2Console()
+    ~Mocap2Console()
     {
         // put cleanup here if needed
     }
@@ -62,7 +63,7 @@ private:
         // 1. UnifiedMocapClient is constructed
         // 2. this class is constructed
         // 3. arguments are parsed
-        // 4. NatNetClient and its callback handlers are constructed
+        // 4. MocapClient and its callback handlers are constructed
 
         // do your setup work here, like initializing ports, opening lopfiles, etc
     }

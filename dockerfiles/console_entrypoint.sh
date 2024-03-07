@@ -1,2 +1,2 @@
 #!/bin/bash
-./build/natnet2console "$@"
+./build/mocap2console "$@"

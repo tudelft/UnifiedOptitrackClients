@@ -1,16 +1,21 @@
 # Base image
 FROM ubuntu:22.04
 
-# Update sources
-RUN apt-get update && apt-get upgrade -y
+# Update sources and install boost and build tools
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y \
+        libboost-all-dev \
+        software-properties-common \
+        build-essential \
+        cmake \
+    # Remove apt cache
+    && rm -rf /var/lib/apt/lists/*
 
-# Install boost and ivy
-RUN apt-get install -y libboost-all-dev
-RUN apt-get install -y software-properties-common 
-RUN apt-get install -y build-essential && apt-get install -y cmake
+# Install Ivy
 ENV TZ=Europe/Amsterdam
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN add-apt-repository -y ppa:paparazzi-uav/ppa && apt-get update && apt-get install -y ivy-c-dev 
+RUN add-apt-repository -y ppa:paparazzi-uav/ppa && apt-get update && apt-get install -y ivy-c-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Add copy of local workspace 
 WORKDIR /home/

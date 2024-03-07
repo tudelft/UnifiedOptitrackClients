@@ -1,12 +1,14 @@
 # Base image
 FROM ubuntu:22.04
 
-# Update sources
-RUN apt-get update && apt-get upgrade -y
-
-# Install boost and build tools
-RUN apt-get install -y libboost-all-dev
-RUN apt-get install -y build-essential && apt-get install -y cmake
+# Update sources and install boost and build tools
+RUN apt-get update && apt-get upgrade -y \
+    && apt-get install -y \
+        libboost-all-dev \
+        build-essential \
+        cmake \
+    # Remove apt cache
+    && rm -rf /var/lib/apt/lists/*
 
 # Add copy of local workspace 
 WORKDIR /home/

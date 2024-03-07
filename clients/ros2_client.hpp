@@ -12,10 +12,10 @@
 #include "px4_msgs/msg/vehicle_odometry.hpp"
 #endif
 
-class NatNet2Ros2 : public UnifiedMocapClient, public rclcpp::Node
+class Mocap2Ros2 : public UnifiedMocapClient, public rclcpp::Node
 {
 public:
-    NatNet2Ros2() : Node("mocap_publisher",
+    Mocap2Ros2() : Node("mocap_publisher",
                          rclcpp::NodeOptions().arguments(
                                 {"--ros-args",
                                 "--disable-rosout-logs",

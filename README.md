@@ -2,12 +2,12 @@ Currently supported clients:
 
 |        Client        | Means of Publishing                                                                  | Launch Command (Example)              |
 |:--------------------:|------------------------------------------------------|---------------------------------------|
-| `console` | Only to the terminal (if activated)                                                  | `natnet2console -c NED`                 |
-| `ivy`                | For the Ivy client                                                                   | `natnet2ivy -s 123`                   |
-| `udp`                | Data as a UDP stream                                                                 | `natnet2udp -i 192.168.209.100 -p 25` |
-| `log`                | Data directly dumped into a file                                                     | `natnet2log -n myfile.csv`            |
-| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `natnet2ros2 --publish_topic UAV`     |
-| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `natnet2ros2px4 -f 120`               |
+| `console` | Only to the terminal (if activated)                                                  | `mocap2console -c NED`                 |
+| `ivy`                | For the Ivy client                                                                   | `mocap2ivy -s 123`                   |
+| `udp`                | Data as a UDP stream                                                                 | `mocap2udp -i 192.168.209.100 -p 25` |
+| `log`                | Data directly dumped into a file                                                     | `mocap2log -n myfile.csv`            |
+| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `mocap2ros2 --publish_topic UAV`     |
+| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `mocap2ros2px4 -f 120`               |
 
 
 Build using Docker (Recommended)
@@ -17,12 +17,17 @@ Each client has its own `dockerfile` to make compilation across platforms easier
 
 Then you can build your docker image using e.g., 
 
-    docker build -t logclient . -f ./dockerfiles/log.dockerfile 
+    docker build -t consoleclient . -f ./dockerfiles/console.dockerfile 
 
 Where `-t` defines the name of the docker image and `-f` defines the file path to the `dockerfile`.
-Afterward you can run the docker image with:
+Afterward, you can run the docker image with:
 
-    docker run -it --rm --net host logclient -f cmdline args of your choice
+    docker run -it --rm --net host consoleclient cmdline args of your choice
+
+When running the logging client with docker you have to mount a volume such that the written file will persist on the host machine. 
+The client expects the volume to be mounted under `/data`, i.e. the command would be something like to save the data in the current directory:
+
+    docker run -it --net=host -v ./:/data logclient -s 1 -o data.csv
 
 Building natively
 -------------------
