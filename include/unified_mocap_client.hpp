@@ -18,10 +18,6 @@ char getch();
 
 constexpr unsigned int MAX_TRACKED_RB = 10;
 
-enum CoordinateSystem { UNCHANGED=0, NED, ENU};
-enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
-enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
-
 class UnifiedMocapClient 
 {
 private:
@@ -31,7 +27,7 @@ private:
     ArenaDirection craft_nose;
     NatNetClient* pClient;
     sNatNetClientConnectParams connectParams;
-    UpAxis upAxis;
+    UpAxis up_axis;
     bool testMode;
 
     // container for tracking the rigid bodies
@@ -51,9 +47,6 @@ private:
     void read_po(int argc, char const *argv[]);
     void print_startup();
     void print_coordinate_system() const;
-
-    /* Transforms an unchanged pose to the desired coordinate system */
-    pose_t transform_pose(const pose_t);
 
     ErrorCode connectAndDetectServerSettings();
 

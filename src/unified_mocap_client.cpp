@@ -76,7 +76,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 }
 
 UnifiedMocapClient::UnifiedMocapClient()
-    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, upAxis{UpAxis::NOTDETECTED}, printMessages{false},
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, up_axis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, testMode{false}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -383,7 +383,7 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
     {
         std::cout << "Sending test data instead of attempting Motive Connect" << std::endl;
         this->testMode = true;
-        this->upAxis = UpAxis::Y;
+        this->up_axis = UpAxis::Y;
         this->fSample = 100;
         this->serverConfig.HighResClockFrequency = 1e6;
     }
@@ -450,9 +450,9 @@ void UnifiedMocapClient::print_coordinate_system() const
     std::cout << R"(
 left │                          │ right )";
 
-    // If the upAxis is not detected the CO is not well defined
+    // If the up_axis is not detected the CO is not well defined
     // and we can't draw the coordinate system
-    if(this->upAxis == UpAxis::NOTDETECTED)
+    if(this->up_axis == UpAxis::NOTDETECTED)
     {
         std::cout << R"(
      │ UpAxis could not be      │
@@ -464,7 +464,7 @@ left │                          │ right )";
     switch(this->co)
     {
         case CoordinateSystem::UNCHANGED:
-            switch(this->upAxis)
+            switch(this->up_axis)
             {
                 case UpAxis::X:
                     std::cout << R"( 
@@ -686,8 +686,8 @@ ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
     std::cout<<"Detecting up axis... ";
     ret = this->pClient->SendMessageAndWait("GetProperty,,Up Axis", &response, &nBytes);
     if (ret == ErrorCode_OK) {
-        this->upAxis = static_cast<UpAxis>( ((char*)response)[0] - '0' );
-        std::cout << this->upAxis << std::endl;
+        this->up_axis = static_cast<UpAxis>( ((char*)response)[0] - '0' );
+        std::cout << this->up_axis << std::endl;
     } else {
         std::cout << "Error code " << ret << std::endl;
         return ret;
@@ -700,179 +700,6 @@ ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
     std::cout << "3. 'Multicast' is selected in 'Data Streaming Pane' in Motive" << std::endl;
 
     return ErrorCode_OK;
-}
-
-pose_t UnifiedMocapClient::transform_pose(const pose_t newPose)
-{
-    pose_t result(newPose);
-    
-    if(this->co != CoordinateSystem::UNCHANGED)
-    {
-
-        float x_copy = result.x;
-        float y_copy = result.y;
-        float z_copy = result.z;
-
-        float qw_copy = result.qw;
-        float qx_copy = result.qx;
-        float qy_copy = result.qy;
-        float qz_copy = result.qz;
-
-        switch(this->upAxis)
-        {
-            case UpAxis::X:
-                // Transform from X-Up to Y-Up
-                result.x = -y_copy;
-                result.y = x_copy;
-                result.z = z_copy;
-
-                result.qw = qw_copy;
-                result.qx = -qy_copy;
-                result.qy = qx_copy;
-                result.qz = qz_copy;
-                break;
-            case UpAxis::Y:
-                // We do nothing because this is what we want to have
-                break;
-            case UpAxis::Z:
-                // Transform from X-Up to Y-Up
-                result.x = x_copy;
-                result.y = z_copy;
-                result.z = -y_copy;
-
-                result.qw = qw_copy;
-                result.qx = qx_copy;
-                result.qy = qz_copy;
-                result.qz = -qy_copy;
-                break;
-            case UpAxis::NOTDETECTED:
-                // The up axis is not known. Abort
-                std::cerr << "The up-axis is not detected. Aborting." << std::endl;
-                std::raise(SIGINT);
-                break;    
-            default:
-                break;
-        }
-
-        x_copy = result.x;
-        y_copy = result.y;
-        z_copy = result.z;
-
-        qw_copy = result.qw;
-        qx_copy = result.qx;
-        qy_copy = result.qy;
-        qz_copy = result.qz;
-
-        switch(this->long_edge)
-        {
-
-            case ArenaDirection::RIGHT:
-                // We do nothing because this is what we want to have
-                break;
-            case ArenaDirection::FAR_SIDE:
-                // Rotate to align in the yaw plane
-                result.x = z_copy;
-                result.z = -x_copy;
-
-                result.qx = qz_copy;
-                result.qz = -qx_copy;
-                break;
-            case ArenaDirection::LEFT:
-                // Rotate to align in the yaw plane
-                result.x = -x_copy;
-                result.z = -z_copy;
-
-                result.qx = -qx_copy;
-                result.qz = -qz_copy;
-                break;
-            case ArenaDirection::NEAR_SIDE:
-                // Rotate to align in the yaw plane
-                result.x = -z_copy;
-                result.z = x_copy;
-
-                result.qx = -qz_copy;
-                result.qz = qx_copy;
-                break;
-        }
-
-        qw_copy = result.qw;
-        qx_copy = result.qx;
-        qy_copy = result.qy;
-        qz_copy = result.qz;
-
-        float nose_rot_qw;
-        float nose_rot_qx = 0.;
-        float nose_rot_qy;
-        float nose_rot_qz = 0.;
-
-        switch(this->craft_nose) {
-            case ArenaDirection::RIGHT:
-                // left hand pi/2 rotation around Y axis (up)
-                nose_rot_qw = -sqrt(2.0)/2.0;
-                nose_rot_qy =  sqrt(2.0)/2.0;
-                break;
-            case ArenaDirection::FAR_SIDE:
-                // no change, because this is what we have
-                nose_rot_qw = 1.0;
-                nose_rot_qy = 0.0;
-                break;
-            case ArenaDirection::LEFT:
-                // right hand pi/2 rotation around Y axis (up)
-                nose_rot_qw = sqrt(2.0)/2.0;
-                nose_rot_qy = sqrt(2.0)/2.0;
-                break;
-            case ArenaDirection::NEAR_SIDE:
-                // pi rotation around Y
-                nose_rot_qw =  0.0;
-                nose_rot_qy = -1.0;
-                break;
-        }
-
-        // perform nose rotation as quaternion rotation https://gegcalculators.com/quaternion-multiplication-calculator-online/
-        // result = q_copy * nose_rot  --> use some library here? does boost have quats?
-        result.qw = qw_copy * nose_rot_qw - qx_copy * nose_rot_qx -  qy_copy * nose_rot_qy - qz_copy * nose_rot_qz;
-        result.qx = qw_copy * nose_rot_qx + qx_copy * nose_rot_qw +  qy_copy * nose_rot_qz - qz_copy * nose_rot_qy;
-        result.qy = qw_copy * nose_rot_qy - qx_copy * nose_rot_qz +  qy_copy * nose_rot_qw + qz_copy * nose_rot_qx;
-        result.qz = qw_copy * nose_rot_qz + qx_copy * nose_rot_qy -  qy_copy * nose_rot_qx + qz_copy * nose_rot_qw;
-
-
-        x_copy = result.x;
-        y_copy = result.y;
-        z_copy = result.z;
-
-        qw_copy = result.qw;
-        qx_copy = result.qx;
-        qy_copy = result.qy;
-        qz_copy = result.qz;
-
-        switch(this->co)
-        {
-            case CoordinateSystem::ENU:
-                // Transform to ENU
-                result.x = z_copy;
-                result.y = x_copy;
-                result.z = y_copy;
-
-                result.qx = qz_copy;
-                result.qy = qx_copy;
-                result.qz = qy_copy;
-                break;
-            case CoordinateSystem::NED:
-                // Transform to NED
-                result.x = x_copy;
-                result.y = z_copy;
-                result.z = -y_copy;
-
-                result.qx = qx_copy;
-                result.qy = qz_copy;
-                result.qz = -qy_copy;
-                break;
-            default:
-                break;
-        }
-    }
-
-    return result;
 }
 
 void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
@@ -909,7 +736,11 @@ void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         };
 
         /* Transform the pose to the desired coordinate system */
-        newPose = this->transform_pose(newPose);
+        newPose = transform_pose(this->co,
+                                this->up_axis,
+                                this->long_edge,
+                                this->craft_nose,
+                                newPose);
 
         /* Thread safely setting the new values */
         this->setPoseDerRB(idx, derFilter[idx].apply(newPose));
