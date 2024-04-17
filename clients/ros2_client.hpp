@@ -22,6 +22,10 @@ public:
                                 "--disable-rosout-logs",
                                 "--log-level", "rclcpp:=error"})),
                     _topics{"/mocap"}
+
+#ifdef USE_CLIENT_ROS2PX4
+                    , _px4_topics{"/fmu/in/vehicle_visual_odometry"}
+#endif                    
     {  
         std::cout<< R"(
 ##  ___  ___  ___   ___  ########################################################
@@ -35,9 +39,10 @@ public:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         desc.add_options()
-            ("publish_topics, t", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish on.")
+            ("publish_topics,t", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish on.")
 #ifdef USE_CLIENT_ROS2PX4
-            ("px4_ids, p", boost::program_options::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to publish on px4 topics")
+            ("px4_ids,p", boost::program_options::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to publish on px4 topics")
+            ("px4_topics,o", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish the px4 msgs on")
 #endif
         ;
     }
@@ -45,7 +50,7 @@ public:
     void parse_extra_po(const boost::program_options::variables_map &vm) override
     {
         if (vm.count("publish_topics")) {
-            this->_topics  = vm["publish_topic"].as<std::vector<std::string> >();
+            this->_topics  = vm["publish_topics"].as<std::vector<std::string> >();
             std::cout << "ROS2 publishing topics: {";
             for(std::string topic : this->_topics) std::cout << " " << topic;
             std::cout << " }" << std::endl;
@@ -61,12 +66,6 @@ public:
             std::cout << "PX4 streaming IDs set to";
             for(unsigned int id : this->_px4_streaming_ids) std::cout << " " << id << " ";
             std::cout << std::endl;
-
-            if(this->_px4_streaming_ids.size() > 1)
-            {
-                std::cerr << "Currently not supporting multiple PX4 vehicles. Shutting down..." << std::endl;
-                std::raise(SIGINT);
-            }
         }
         else
         {   
@@ -76,6 +75,17 @@ public:
             std::cout << "PX4 Streaming IDs not set, defaulting to";
             for(unsigned int id : this->_px4_streaming_ids) std::cout << " " << id << " ";
             std::cout << std::endl;
+        }
+
+        if (vm.count("px4_topics")) {
+            this->_px4_topics  = vm["px4_topics"].as<std::vector<std::string> >();
+            std::cout << "PX4 publishing topics: {";
+            for(std::string topic : this->_px4_topics) std::cout << " " << topic;
+            std::cout << " }" << std::endl;
+        } else {
+            std::cout << "No PX4 Topics specified, Defaulting to: {";
+            for(std::string topic : this->_px4_topics) std::cout << " " << topic;
+            std::cout << " }" << std::endl;
         }
 #endif
     }
@@ -95,7 +105,16 @@ public:
         } 
 
 #ifdef USE_CLIENT_ROS2PX4
-        this->_px4_publisher = this->create_publisher<px4_msgs::msg::VehicleOdometry>("/fmu/in/vehicle_visual_odometry", 10);
+
+        if(this->_px4_topics.size() != this->_px4_streaming_ids.size())
+        {
+            std::cerr << "Number of px4 topics does not match number of px4 streaming ids. Exiting." << std::endl;
+            std::raise(SIGINT);
+        }
+        for(unsigned int i = 0; i < this->_px4_topics.size(); i++)
+        {
+            this->_px4_publishers.push_back(this->create_publisher<px4_msgs::msg::VehicleOdometry>(this->_px4_topics.at(i), 10));
+        }
         this->_timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", rclcpp::SensorDataQoS(), std::bind(&Mocap2Ros2::_timesync_callback, this, std::placeholders::_1));
 #endif
     }
@@ -178,7 +197,7 @@ public:
                     px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
 
                     // Publish
-                    this->_px4_publisher->publish(px4_vehicle_odometry);
+                    this->_px4_publishers.at(i)->publish(px4_vehicle_odometry);
                 }
                 #endif
 
@@ -187,9 +206,6 @@ public:
                 this->_twist_publishers.at(i)->publish(twist_msg);
             }
         }
-
-
-      
     }
 
 private:
@@ -198,12 +214,13 @@ private:
     std::vector<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr> _twist_publishers;
 
 #ifdef USE_CLIENT_ROS2PX4
+    std::vector<rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr> _px4_publishers;
     rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr _timesync_sub;
-    rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr _px4_publisher;
 
     std::atomic<uint64_t> _timestamp_remote;
     rclcpp::Time _timestamp_local;
 
+    std::vector<std::string> _px4_topics;
     std::vector<unsigned int> _px4_streaming_ids;
 
     //Callback function
