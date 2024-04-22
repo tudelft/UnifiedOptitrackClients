@@ -1,11 +1,5 @@
 #include "unified_mocap_client.hpp"
 
-// #include <errno.h>
-// #include <stdio.h>
-// #include <string.h>
-// #include <stdbool.h>
-// #include <stdint.h>
-
 // #include <time.h>
 
 #include <iostream>
@@ -26,13 +20,10 @@ public:
     {
         // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
-#################################################################################
-####################################
-##  __  __          _ _      _    ##
+##  __  __          _ _      _    ###############################################
 ## |  \/  |__ ___ _| (_)_ _ | |__ ##
 ## | |\/| / _` \ V / | | ' \| / / ##
 ## |_|  |_\__,_|\_/|_|_|_||_|_\_\ ##
-##                                ##
 ####################################   
 )" << std::endl;
     }
@@ -42,7 +33,6 @@ public:
         // put cleanup here if needed
     }
 
-private:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
 
@@ -61,8 +51,8 @@ private:
         // 3. arguments are parsed
         // 4. MocapClient and its callback handlers are constructed
         
-        // Open UDP socket
-        const int socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
+        // Open UDP
+        socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
 
         if (socket_fd < 0) {
             printf("socket error: %s\n", strerror(errno));
@@ -73,8 +63,8 @@ private:
         struct sockaddr_in addr = {};
         memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
-        inet_pton(AF_INET, "0.0.0.0", &(addr.sin_addr)); // listen on all network interfaces
-        addr.sin_port = htons(14550); // default port on the ground
+        inet_pton(AF_INET, "127.0.0.1", &(addr.sin_addr));
+        addr.sin_port = htons(14551); // default port on the ground
 
         if (bind(socket_fd, (struct sockaddr*)(&addr), sizeof(addr)) != 0) {
             printf("bind error: %s\n", strerror(errno));
@@ -90,10 +80,6 @@ private:
             printf("setsockopt error: %s\n", strerror(errno));
             // return -3;
         }
-
-        struct sockaddr_in src_addr = {};
-        socklen_t src_addr_len = sizeof(src_addr);
-        bool src_addr_set = false;
     }
 
     void publish_data() override
@@ -118,10 +104,117 @@ private:
         }
         */
 
-       std::cout << "AAAAAAAAAAAAAAAAAAA" << std::endl;
+        
+        // std::cout << MAVLINK_MSG_ID_HEARTBEAT << std::endl;
 
+        receive_some(socket_fd, &src_addr, &src_addr_len, &src_addr_set);
+
+        if (src_addr_set) {
+            send_some(socket_fd, &src_addr, src_addr_len);
+        }
+    }
+
+    void receive_some(int socket_fd, struct sockaddr_in* src_addr, socklen_t* src_addr_len, bool* src_addr_set)
+    {
+        // We just receive one UDP datagram and then return again.
+        char buffer[2048]; // enough for MTU 1500 bytes
+
+        const int ret = recvfrom(
+                socket_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)(src_addr), src_addr_len);
+
+        if (ret < 0) {
+            printf("recvfrom error: %s\n", strerror(errno));
+        } else if (ret == 0) {
+            // peer has done an orderly shutdown
+            return;
+        } 
+
+        *src_addr_set = true;
+
+        mavlink_message_t message;
+        mavlink_status_t status;
+        for (int i = 0; i < ret; ++i) {
+            if (mavlink_parse_char(MAVLINK_COMM_0, buffer[i], &message, &status) == 1) {
+
+                // printf(
+                //     "Received message %d from %d/%d\n",
+                //     message.msgid, message.sysid, message.compid);
+
+                switch (message.msgid) {
+                case MAVLINK_MSG_ID_HEARTBEAT:
+                    handle_heartbeat(&message);
+                    break;
+                }
+            }
+        }
+    }
+
+    void handle_heartbeat(const mavlink_message_t* message)
+    {
+        mavlink_heartbeat_t heartbeat;
+        mavlink_msg_heartbeat_decode(message, &heartbeat);
+
+        printf("Got heartbeat from ");
+        switch (heartbeat.autopilot) {
+            case MAV_AUTOPILOT_GENERIC:
+                printf("generic");
+                break;
+            case MAV_AUTOPILOT_ARDUPILOTMEGA:
+                printf("ArduPilot");
+                break;
+            case MAV_AUTOPILOT_PX4:
+                printf("PX4");
+                break;
+            default:
+                printf("other");
+                break;
+        }
+        printf(" autopilot\n");
+    }
+
+    void send_some(int socket_fd, const struct sockaddr_in* src_addr, socklen_t src_addr_len)
+    {
+        // Whenever a second has passed, we send a heartbeat.
+        static time_t last_time = 0;
+        time_t current_time = time(NULL);
+        if (current_time - last_time >= 1) {
+            send_heartbeat(socket_fd, src_addr, src_addr_len);
+            last_time = current_time;
+        }
+    }
+
+    void send_heartbeat(int socket_fd, const struct sockaddr_in* src_addr, socklen_t src_addr_len)
+    {
+        mavlink_message_t message;
+
+        const uint8_t system_id = 42;
+        const uint8_t base_mode = 0;
+        const uint8_t custom_mode = 0;
+        mavlink_msg_heartbeat_pack_chan(
+            system_id,
+            MAV_COMP_ID_PERIPHERAL,
+            MAVLINK_COMM_0,
+            &message,
+            MAV_TYPE_GENERIC,
+            MAV_AUTOPILOT_GENERIC,
+            base_mode,
+            custom_mode,
+            MAV_STATE_STANDBY);
+
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        const int len = mavlink_msg_to_send_buffer(buffer, &message);
+
+        int ret = sendto(socket_fd, buffer, len, 0, (const struct sockaddr*)src_addr, src_addr_len);
+        if (ret != len) {
+            printf("sendto error: %s\n", strerror(errno));
+        } else {
+            printf("Sent heartbeat\n");
+        }
     }
 
 private:
-    // can be used for extra class members
+    int socket_fd;
+    struct sockaddr_in src_addr = {};
+    socklen_t src_addr_len = sizeof(src_addr);
+    bool src_addr_set = false;
 };
