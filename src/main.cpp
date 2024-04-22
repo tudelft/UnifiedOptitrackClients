@@ -23,6 +23,10 @@
     #include "rclcpp/rclcpp.hpp"
 #endif
 
+#if defined(USE_CLIENT_MAVLINK)
+    #include "mavlink_client.hpp"
+#endif
+
 namespace{
     std::function<void(int)> shutdown_handler;
     void signal_handler(int signal) { shutdown_handler(signal); }
@@ -88,6 +92,14 @@ int main(int argc, char const *argv[])
         client.start(argc, argv);
     }
 #endif
+
+#ifdef USE_CLIENT_MAVLINK
+    if (p.filename() == "mocap2mavlink") {
+        Mocap2Mavlink client = Mocap2Mavlink(); 
+        client.start(argc, argv);
+    } else 
+#endif
+
     {
         std::cout << "Support for client " << p.filename() << "was not compiled into the program." << std::endl;
         return 1;
