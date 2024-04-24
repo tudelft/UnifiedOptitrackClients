@@ -31,6 +31,7 @@ enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
 enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
 
 pose_t transform_pose(const CoordinateSystem co,
+                      const ArenaDirection co_north,
                       const UpAxis up_axis,
                       const ArenaDirection long_edge,
                       const ArenaDirection craft_nose,
