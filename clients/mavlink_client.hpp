@@ -1,7 +1,5 @@
 #include "unified_mocap_client.hpp"
 
-// #include <time.h>
-
 #include <iostream>
 #include <fstream>
 #include <boost/algorithm/string.hpp>
@@ -11,6 +9,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <sys/time.h>
+
 #include <mavlink/common/mavlink.h>
 
 class Mocap2Mavlink : public UnifiedMocapClient
@@ -18,7 +18,6 @@ class Mocap2Mavlink : public UnifiedMocapClient
 public:
     Mocap2Mavlink()
     {
-        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
 ##  __  __          _ _      _    ###############################################
 ## |  \/  |__ ___ _| (_)_ _ | |__ ##
@@ -30,7 +29,7 @@ public:
 
     ~Mocap2Mavlink()
     {
-        // put cleanup here if needed
+        close(socket_fd);
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
@@ -43,15 +42,14 @@ public:
 
     }
 
+    void printSocketAddress(const struct sockaddr_in *addr) {
+        printf("IP Address: %s\n", inet_ntoa(addr->sin_addr));
+        printf("Port: %d\n", ntohs(addr->sin_port));
+    }
+
     void pre_start() override
-    {
-        // gets called after:
-        // 1. UnifiedMocapClient is constructed
-        // 2. this class is constructed
-        // 3. arguments are parsed
-        // 4. MocapClient and its callback handlers are constructed
-        
-        // Open UDP
+    {       
+        // Open UDP socket
         socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
 
         if (socket_fd < 0) {
@@ -80,37 +78,96 @@ public:
             printf("setsockopt error: %s\n", strerror(errno));
             // return -3;
         }
+
+        receive_some(socket_fd, &src_addr, &src_addr_len, &src_addr_set);
+
+        // print sender's address
+        // printSocketAddress(&src_addr);
     }
 
     void publish_data() override
     {
-        // this gets called every this->publish_dt seconds. Publish data here.
-        // for instance, this is how to just print the z-position of all tracked bodies
-
-        // don't run anything expensive in here, just publishing
-
-        /*
-        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        {
-            if (this->isUnpublishedRB(i)) {
-                unsigned int streaming_id = this->getStreamingIds()[i];
-
-                pose_t pose = this->getPoseRB(i);
-                //pose_der_t pose_der = this->getPoseDerRB(i); // derivative
-
-                std::cout << "Rigid body with streaming id " << streaming_id 
-                << " has z position " << pose.z << std::endl;
+        if (src_addr_set == true) {
+            if (this->isUnpublishedRB(0)) {
+                send_gps_input(socket_fd, &src_addr, src_addr_len);
+                send_att_pos_mocap(socket_fd, &src_addr, src_addr_len);
             }
         }
-        */
+    }
 
+    void send_att_pos_mocap(int socket_fd, const struct sockaddr_in* src_addr, socklen_t src_addr_len)
+    {
+        mavlink_message_t message;
+
+        uint8_t system_id = 42;
+        struct timeval tv;
+        uint64_t timestamp_us;
+        gettimeofday(&tv, NULL);
+        timestamp_us = (long long)tv.tv_sec * 1000000LL + (long long)tv.tv_usec;
         
-        // std::cout << MAVLINK_MSG_ID_HEARTBEAT << std::endl;
+        pose_t pose = this->getPoseRB(0);
+        float q[4] = {pose.qw, pose.qx, pose.qy, pose.qz};
 
-        receive_some(socket_fd, &src_addr, &src_addr_len, &src_addr_set);
+        float cov[21];
+        cov[0] = NAN;
 
-        if (src_addr_set) {
-            send_some(socket_fd, &src_addr, src_addr_len);
+        printf("%ld,%f,%f,%f\n", timestamp_us, pose.x, pose.y, pose.z);
+
+        mavlink_msg_att_pos_mocap_pack(
+                system_id,
+                MAV_COMP_ID_PERIPHERAL,
+                &message,
+                timestamp_us,
+                q,
+                pose.x,
+                pose.y,
+                pose.z,
+                cov);
+
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        const int len = mavlink_msg_to_send_buffer(buffer, &message);
+
+        int ret = sendto(socket_fd, buffer, len, 0, (const struct sockaddr*)src_addr, src_addr_len);
+        if (ret != len) {
+            printf("sendto error: %s\n", strerror(errno));
+        }
+    }
+
+    void send_gps_input(int socket_fd, const struct sockaddr_in* src_addr, socklen_t src_addr_len)
+    {
+        mavlink_message_t message;
+
+        uint8_t system_id = 42;
+        struct timeval tv;
+        uint64_t timestamp_us;
+        gettimeofday(&tv, NULL);
+        timestamp_us = (long long)tv.tv_sec * 1000000LL + (long long)tv.tv_usec;
+
+        mavlink_msg_gps_input_pack(
+            system_id,
+            MAV_COMP_ID_PERIPHERAL,
+            &message,
+            timestamp_us,
+            0,
+            254,
+            0, // ms start of week
+            1, // week no   
+            3, // 3d fix
+            386300000, // lat
+            242000000, // lon
+            0, // alt
+            UINT16_MAX,
+            UINT16_MAX,
+            0,0,0,0,0,0,
+            15,
+            0); //yaw
+
+        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+        const int len = mavlink_msg_to_send_buffer(buffer, &message);
+
+        int ret = sendto(socket_fd, buffer, len, 0, (const struct sockaddr*)src_addr, src_addr_len);
+        if (ret != len) {
+            printf("sendto error: %s\n", strerror(errno));
         }
     }
 
@@ -172,49 +229,8 @@ public:
         printf(" autopilot\n");
     }
 
-    void send_some(int socket_fd, const struct sockaddr_in* src_addr, socklen_t src_addr_len)
-    {
-        // Whenever a second has passed, we send a heartbeat.
-        static time_t last_time = 0;
-        time_t current_time = time(NULL);
-        if (current_time - last_time >= 1) {
-            send_heartbeat(socket_fd, src_addr, src_addr_len);
-            last_time = current_time;
-        }
-    }
-
-    void send_heartbeat(int socket_fd, const struct sockaddr_in* src_addr, socklen_t src_addr_len)
-    {
-        mavlink_message_t message;
-
-        const uint8_t system_id = 42;
-        const uint8_t base_mode = 0;
-        const uint8_t custom_mode = 0;
-        mavlink_msg_heartbeat_pack_chan(
-            system_id,
-            MAV_COMP_ID_PERIPHERAL,
-            MAVLINK_COMM_0,
-            &message,
-            MAV_TYPE_GENERIC,
-            MAV_AUTOPILOT_GENERIC,
-            base_mode,
-            custom_mode,
-            MAV_STATE_STANDBY);
-
-        uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
-        const int len = mavlink_msg_to_send_buffer(buffer, &message);
-
-        int ret = sendto(socket_fd, buffer, len, 0, (const struct sockaddr*)src_addr, src_addr_len);
-        if (ret != len) {
-            printf("sendto error: %s\n", strerror(errno));
-        } else {
-            printf("Sent heartbeat\n");
-        }
-    }
-
-private:
     int socket_fd;
     struct sockaddr_in src_addr = {};
     socklen_t src_addr_len = sizeof(src_addr);
-    bool src_addr_set = false;
+    bool src_addr_set = true;
 };
