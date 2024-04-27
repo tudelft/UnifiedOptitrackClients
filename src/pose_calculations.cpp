@@ -2,6 +2,7 @@
 
 pose_t transform_pose(const CoordinateSystem co, 
                       const ArenaDirection co_north,
+                      const double true_north_deg,
                       const UpAxis up_axis,
                       const ArenaDirection long_edge,
                       const ArenaDirection craft_nose,
@@ -123,6 +124,11 @@ pose_t transform_pose(const CoordinateSystem co,
             case ArenaDirection::FAR_SIDE: { co_north_angle = 0.0; break; }
             case ArenaDirection::LEFT: { co_north_angle = M_PI/2.0; break; }
             case ArenaDirection::NEAR_SIDE: { co_north_angle = M_PI; break; }
+            case ArenaDirection::TRUE_NORTH:
+                co_north_angle = true_north_deg * M_PI / 180.0;
+                if (co == CoordinateSystem::NED)
+                    co_north_angle *= -1.0;
+                break;
         }
 
         float nose_rot_qw = cos((nose_rot_angle - co_north_angle)/2);

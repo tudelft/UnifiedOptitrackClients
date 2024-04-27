@@ -1,6 +1,7 @@
 #include "unified_mocap_client.hpp"
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <thread>
 #include <boost/algorithm/string.hpp>
@@ -76,7 +77,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 }
 
 UnifiedMocapClient::UnifiedMocapClient()
-    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, co_north{ArenaDirection::FAR_SIDE}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, up_axis{UpAxis::NOTDETECTED}, printMessages{false},
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, co_north{ArenaDirection::FAR_SIDE}, true_north_deg{0.}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, up_axis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, testMode{false}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -337,8 +338,12 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
         }
         else
         {
-            std::cout << "Coordinate system argument" << co_north << " not definied. Exiting" << std::endl;
-            std::raise(SIGINT);
+            this->co_north = ArenaDirection::TRUE_NORTH;
+            this->true_north_deg = std::atof(co_north.c_str());
+            if (this->true_north_deg == 0.0) {
+                std::cout << "Coordinate system argument" << co_north << " is neither [near_side, far_side, right, left], nor float (for 0.0 use far_side). Exiting" << std::endl;
+                std::raise(SIGINT);
+            }
         }
 
         std::cout << "Coordinate system north set to " << this->co_north << std::endl;
@@ -564,6 +569,15 @@ left │                          │ right )";
      │  y ← ⓧ z                 │
      │    x ↓                   │)";
                     break;
+                case ArenaDirection::TRUE_NORTH: {
+                    int rounded = static_cast<int>(std::round(this->true_north_deg));
+                    char sign = (this->true_north_deg < 0) ? '-' : '+';
+                    std::cout << R"( 
+     │north )" << sign << std::setw(3) << std::setfill(' ') << std::abs(rounded) << R"(° from far side │)" << R"(
+     │      ⊙                   │
+     │     z                    │)";
+                    break;
+                }
             }
             break;
         case CoordinateSystem::ENU:
@@ -592,6 +606,14 @@ left │                          │ right )";
      │                          │
      │   z  ⊙ → y               │
      │    x ↓                   │)";
+                    break;
+                case ArenaDirection::TRUE_NORTH: {
+                    int rounded = static_cast<int>(std::round(this->true_north_deg));
+                    char sign = (this->true_north_deg < 0) ? '-' : '+';
+                    std::cout << R"( 
+     │north )" << sign << std::setw(3) << std::setfill(' ') << std::abs(rounded) << R"(° from far side │)" << R"(
+     │      ⊙                   │
+     │     z                    │)";
                     break;
             }
             break;
@@ -787,6 +809,7 @@ void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
         /* Transform the pose to the desired coordinate system */
         newPose = transform_pose(this->co,
                                 this->co_north,
+                                this->true_north_deg,
                                 this->up_axis,
                                 this->long_edge,
                                 this->craft_nose,
