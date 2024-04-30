@@ -341,7 +341,7 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
             this->co_north = ArenaDirection::TRUE_NORTH;
             this->true_north_deg = std::atof(co_north.c_str());
             if (this->true_north_deg == 0.0) {
-                std::cout << "Coordinate system argument" << co_north << " is neither [near_side, far_side, right, left], nor float (for 0.0 use far_side). Exiting" << std::endl;
+                std::cout << "Coordinate system argument " << co_north << " is neither [near_side, far_side, right, left], nor float (for 0.0 use far_side). Exiting" << std::endl;
                 std::raise(SIGINT);
             }
         }
@@ -574,7 +574,7 @@ left │                          │ right )";
                     char sign = (this->true_north_deg < 0) ? '-' : '+';
                     std::cout << R"( 
      │north )" << sign << std::setw(3) << std::setfill(' ') << std::abs(rounded) << R"(° from far side │)" << R"(
-     │      ⊙                   │
+     │      ⓧ                   │
      │     z                    │)";
                     break;
                 }
@@ -615,6 +615,7 @@ left │                          │ right )";
      │      ⊙                   │
      │     z                    │)";
                     break;
+                }
             }
             break;
 

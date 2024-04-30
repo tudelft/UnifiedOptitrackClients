@@ -143,7 +143,6 @@ pose_t transform_pose(const CoordinateSystem co,
         result.qy = qw_copy * nose_rot_qy - qx_copy * nose_rot_qz +  qy_copy * nose_rot_qw + qz_copy * nose_rot_qx;
         result.qz = qw_copy * nose_rot_qz + qx_copy * nose_rot_qy -  qy_copy * nose_rot_qx + qz_copy * nose_rot_qw;
 
-
         x_copy = result.x;
         y_copy = result.y;
         z_copy = result.z;
