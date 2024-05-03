@@ -4,6 +4,7 @@ Currently supported clients:
 |:--------------------:|------------------------------------------------------|---------------------------------------|
 | `console` | Only to the terminal (if activated)                                                  | `mocap2console -c NED`                 |
 | `ivy`                | For the Ivy client                                                                   | `mocap2ivy -s 123`                   |
+| `mavlink`            | Stream data as MAVLink udp                                                           | `mocap2mavlink -s 123 --autopilot px4`                   |
 | `udp`                | Data as a UDP stream                                                                 | `mocap2udp -i 192.168.209.100 -p 25` |
 | `log`                | Data directly dumped into a file                                                     | `mocap2log -n myfile.csv`            |
 | `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `mocap2ros2 --publish_topic UAV`     |
@@ -36,6 +37,7 @@ Prerequisites vary per client. Currently, these are known:
 |:---------:|------------------------------------------------------------------------------------------|
 | `all`     | `libboost-all-dev` installed with `apt`                                       |
 | `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
+| `mavlink` | `python3-pip`                                                                            |
 | `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
 | `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
 

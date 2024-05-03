@@ -6,7 +6,7 @@ project(optitrack_clients LANGUAGES CXX)
 # ADD YOUR NEW CLIENT TO THIS SEMICOLON-SEPARATED LIST!
 if(NOT DEFINED CLIENTS)
     message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
+    set(CLIENTS "console;ivy;mavlink;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
 add_executable(client src/main.cpp src/pose_calculations.cpp src/unified_mocap_client.cpp)
@@ -93,7 +93,15 @@ if ("ros2px4" IN_LIST CLIENTS)
 endif()
 
 if ("mavlink" IN_LIST CLIENTS)
-    set(CMAKE_PREFIX_PATH $ENV{HOME}/mavlink/install)
-    find_package(MAVLink REQUIRED)
-    target_link_libraries(client MAVLink::mavlink)
+    include(ExternalProject)
+    ExternalProject_Add(mavlink
+        GIT_REPOSITORY https://github.com/mavlink/mavlink
+        GIT_TAG 23eb98ca00032a7edc8b6ff1eb8914ec27c7b268
+        GIT_SUBMODULES_RECURSE TRUE
+        CMAKE_ARGS -H. -DCMAKE_INSTALL_PREFIX=install -DMAVLINK_DIALECT=common -DMAVLINK_VERSION=2.0
+        INSTALL_COMMAND cmake --build . --target install
+    )
+
+    add_dependencies(client mavlink)
+    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/mavlink-prefix/src/mavlink-build/install/include/)
 endif()
