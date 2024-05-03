@@ -18,7 +18,7 @@ ADD ./src ./src
 ADD ./scripts ./scripts
 ADD ./CMakeLists.txt ./CMakeLists.txt
 
-RUN mkdir build && cd build && cmake -D'CLIENTS=console' .. && make
+RUN mkdir build && cd build && cmake -D'CLIENTS=console' .. && cmake --build .
 
 # Add the entrypoint script
 ADD ./dockerfiles/console_entrypoint.sh .

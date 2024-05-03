@@ -18,7 +18,7 @@ ADD ./src ./src
 ADD ./scripts ./scripts
 ADD ./CMakeLists.txt ./CMakeLists.txt
 
-RUN mkdir build && cd build && cmake -D'CLIENTS=log' .. && make
+RUN mkdir build && cd build && cmake -D'CLIENTS=log' .. && cmake --build .
 
 # Add the entrypoint script
 ADD ./dockerfiles/log_entrypoint.sh .

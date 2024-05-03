@@ -13,6 +13,16 @@
 
 #include <mavlink/common/mavlink.h>
 
+enum MAVLinkAp { PX4=0, ARDUCOPTER, ARDUPLANE };
+std::ostream& operator<<(std::ostream& lhs, MAVLinkAp e) {
+    switch(e) {
+    case PX4: lhs << "px4"; break;
+    case ARDUCOPTER: lhs << "arducopter"; break;
+    case ARDUPLANE: lhs << "arduplane"; break;
+    }
+    return lhs;
+} 
+
 class Mocap2Mavlink : public UnifiedMocapClient
 {
 public:
@@ -34,12 +44,61 @@ public:
 
     void add_extra_po(boost::program_options::options_description &desc) override
     {
-
+        desc.add_options()
+            ("client_ip,i", boost::program_options::value<std::string>(), "IP to stream the MAVLink UDP data to. Default 127.0.0.1")
+            ("port,p", boost::program_options::value<unsigned short int>(), "UDP Port. Default 14551.")
+            //("system_id,sid", boost::program_options::value<std::vector<unsigned int>>()->multitoken(), "MAVLink destination system id.")
+            ("autopilot,a", boost::program_options::value<std::string>(), "One of [arducopter, arduplane, px4]")
+        ;
     }
 
     void parse_extra_po(const boost::program_options::variables_map &vm) override
     {
+        if (vm.count("client_ip")) {
+            std::string val = vm["client_ip"].as<std::string>();
+            std::cout << "MAVLink UDP client ip " << val << std::endl;
+            this->_client_ip = val;
+        } else {
+            std::cout << "No MAVLink UDP client ip passed, assuming 127.0.0.1" << std::endl;
+            this->_client_ip = "127.0.0.1";
+        }
 
+        if (vm.count("port")) {
+            unsigned short int val = vm["port"].as<unsigned short int>();
+            std::cout << "Streaming MAVLink UDP on port " << val << std::endl;
+            this->_port = val;
+        } else {
+            std::cout << "No MAVLink UDP port given. Assume 14551" << std::endl;
+            this->_port = 14551;
+        }
+
+        if (this->getStreamingIds().size() > 1) {
+            std::cout << "Number of streaming_ids must be equal to 1 for the MAVLink client. Multiple not (yet) supported"
+                << std::endl;
+            std::raise(SIGINT);
+        }
+
+        if (vm.count("autopilot")) {
+            std::string ap_name = vm["autopilot"].as<std::string>();
+            boost::algorithm::to_lower(ap_name);
+
+            if (ap_name.compare("px4") == 0) { this->ap = MAVLinkAp::PX4; }
+            else if (ap_name.compare("arducopter") == 0) { this->ap = MAVLinkAp::ARDUCOPTER; }
+            else if (ap_name.compare("arduplane") == 0) { this->ap = MAVLinkAp::ARDUPLANE; }
+            else { 
+                std::cout << "Autopilot type " << ap_name << " not definied. Exiting" << std::endl;
+                std::raise(SIGINT);
+            }
+            std::cout << "Autopilot type set to " << this->ap << std::endl;
+        } else {
+            std::cout << "Autopilot type not set, exiting" << std::endl;
+            std::raise(SIGINT);
+        }
+
+        if (!vm.count("coordinate_system")) {
+            std::cout << "WARNING: no Coordinate system passed. MAVLink client overrides default to NED." << std::endl;
+            this->co = CoordinateSystem::NED;
+        }
     }
 
     void printSocketAddress(const struct sockaddr_in *addr) {
@@ -61,8 +120,8 @@ public:
         struct sockaddr_in addr = {};
         memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
-        inet_pton(AF_INET, "127.0.0.1", &(addr.sin_addr));
-        addr.sin_port = htons(14551); // default port on the ground
+        inet_pton(AF_INET, this->_client_ip.c_str(), &(addr.sin_addr));
+        addr.sin_port = htons(this->_port); // default port on the ground
 
         if (bind(socket_fd, (struct sockaddr*)(&addr), sizeof(addr)) != 0) {
             printf("bind error: %s\n", strerror(errno));
@@ -79,7 +138,10 @@ public:
             // return -3;
         }
 
-        receive_some(socket_fd, &src_addr, &src_addr_len, &src_addr_set);
+        std::cout << "Waiting for heartbeat..." << std::endl;
+
+        while (!this->_heartbeat_received)
+            receive_some(socket_fd, &src_addr, &src_addr_len, &src_addr_set);
 
         // print sender's address
         // printSocketAddress(&src_addr);
@@ -89,9 +151,80 @@ public:
     {
         if (src_addr_set == true) {
             if (this->isUnpublishedRB(0)) {
-                send_gps_input(socket_fd, &src_addr, src_addr_len);
-                send_att_pos_mocap(socket_fd, &src_addr, src_addr_len);
+                switch (this->ap) {
+                    case MAVLinkAp::PX4:
+                        send_vision_position_estimate(socket_fd, &src_addr, src_addr_len);
+                        break;
+                    case MAVLinkAp::ARDUCOPTER:
+                        send_att_pos_mocap(socket_fd, &src_addr, src_addr_len);
+                        break;
+                    case MAVLinkAp::ARDUPLANE:
+                        send_gps_input(socket_fd, &src_addr, src_addr_len);
+                        break;
+                }
             }
+        }
+    }
+
+    void quaternion_to_euler(const pose_t pose, float* euler) {
+        // 3-2-1 rotation sequence (yaw then pitch then roll)
+        // NED coordinates assumed
+
+        // roll (x-axis rotation)
+        double sinr_cosp = 2 * (pose.qw * pose.qx + pose.qy * pose.qz);
+        double cosr_cosp = 1 - 2 * (pose.qx * pose.qx + pose.qy * pose.qy);
+        euler[0] = std::atan2(sinr_cosp, cosr_cosp); // roll
+ 
+        // pitch (y-axis rotation)
+        double sinp = std::sqrt(1 + 2 * (pose.qw * pose.qy - pose.qx * pose.qz));
+        double cosp = std::sqrt(1 - 2 * (pose.qw * pose.qy - pose.qx * pose.qz));
+        euler[1] = 2 * std::atan2(sinp, cosp) - M_PI / 2; // pitch
+ 
+        // yaw (z-axis rotation)
+        double siny_cosp = 2 * (pose.qw * pose.qz + pose.qx * pose.qy);
+        double cosy_cosp = 1 - 2 * (pose.qy * pose.qy + pose.qz * pose.qz);
+        euler[2] = std::atan2(siny_cosp, cosy_cosp); // yaw
+    }
+
+    void send_vision_position_estimate(int socket_fd, const struct sockaddr_in* src_addr, socklen_t src_addr_len)
+    {
+        mavlink_message_t message;
+
+        uint8_t system_id = 42;
+        struct timeval tv;
+        uint64_t timestamp_us;
+        gettimeofday(&tv, NULL);
+        timestamp_us = (long long)tv.tv_sec * 1000000LL + (long long)tv.tv_usec;
+
+        pose_t pose = this->getPoseRB(0);
+        float euler[3];
+        quaternion_to_euler(pose, euler);
+
+        float cov[21];
+        cov[0] = NAN;
+
+        //printf("%ld,%f,%f,%f\n", timestamp_us, pose.x, pose.y, pose.z);
+
+        mavlink_msg_vision_position_estimate_pack(
+                system_id,
+                MAV_COMP_ID_PERIPHERAL,
+                &message,
+                timestamp_us,
+                pose.x,
+                pose.y,
+                pose.z,
+                euler[0], // roll
+                euler[1], // pitch
+                euler[2], // yaw
+                cov,
+                0);
+
+        uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+        const int len = mavlink_msg_to_send_buffer(buf, &message);
+
+        int ret = sendto(socket_fd, buf, len, 0, (const struct sockaddr*)src_addr, src_addr_len);
+        if (ret != len) {
+            printf("sendto error: %s\n", strerror(errno));
         }
     }
 
@@ -111,7 +244,7 @@ public:
         float cov[21];
         cov[0] = NAN;
 
-        printf("%ld,%f,%f,%f\n", timestamp_us, pose.x, pose.y, pose.z);
+        //printf("%ld,%f,%f,%f\n", timestamp_us, pose.x, pose.y, pose.z);
 
         mavlink_msg_att_pos_mocap_pack(
                 system_id,
@@ -180,7 +313,8 @@ public:
                 socket_fd, buffer, sizeof(buffer), 0, (struct sockaddr*)(src_addr), src_addr_len);
 
         if (ret < 0) {
-            printf("recvfrom error: %s\n", strerror(errno));
+            //printf("recvfrom error: %s\n", strerror(errno));
+            return;
         } else if (ret == 0) {
             // peer has done an orderly shutdown
             return;
@@ -227,10 +361,17 @@ public:
                 break;
         }
         printf(" autopilot\n");
+        this->_heartbeat_received = true;
     }
+
+private:
+    unsigned short int _port;
+    std::string _client_ip;
 
     int socket_fd;
     struct sockaddr_in src_addr = {};
     socklen_t src_addr_len = sizeof(src_addr);
     bool src_addr_set = true;
+    MAVLinkAp ap;
+    bool _heartbeat_received = false;
 };

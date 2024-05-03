@@ -22,7 +22,6 @@ class UnifiedMocapClient
 {
 private:
     float publish_dt;
-    CoordinateSystem co;
     ArenaDirection co_north;
     float true_north_deg;
     ArenaDirection long_edge;
@@ -60,6 +59,7 @@ private:
     std::vector<unsigned int> streaming_ids;
 
 protected:
+    CoordinateSystem co;
     unsigned int getStreamingId(unsigned int i) {return this->streaming_ids[i]; };
     std::vector<unsigned int> getStreamingIds() {return this->streaming_ids; };
     int trackRB(unsigned int id) {
