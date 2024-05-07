@@ -24,7 +24,7 @@ private:
     float publish_dt;
     CoordinateSystem co;
     ArenaDirection co_north;
-    double true_north_deg;
+    float true_north_deg;
     ArenaDirection long_edge;
     ArenaDirection craft_nose;
     NatNetClient* pClient;

@@ -2,7 +2,7 @@
 
 pose_t transform_pose(const CoordinateSystem co, 
                       const ArenaDirection co_north,
-                      const double true_north_deg,
+                      const float true_north_deg,
                       const UpAxis up_axis,
                       const ArenaDirection long_edge,
                       const ArenaDirection craft_nose,
@@ -104,7 +104,7 @@ pose_t transform_pose(const CoordinateSystem co,
         qy_copy = result.qy;
         qz_copy = result.qz;
 
-        double nose_rot_angle;
+        float nose_rot_angle;
         switch(craft_nose)
         {
             // left hand pi/2 rotation around Y axis (up)
@@ -117,7 +117,7 @@ pose_t transform_pose(const CoordinateSystem co,
             case ArenaDirection::NEAR_SIDE: { nose_rot_angle = M_PI; break; }
         }
 
-        double co_north_angle;
+        float co_north_angle;
         switch(co_north)
         {
             case ArenaDirection::RIGHT: { co_north_angle = -M_PI/2.0; break; }
