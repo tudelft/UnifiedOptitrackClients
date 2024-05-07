@@ -84,8 +84,10 @@ public:
 
             if (ap_name.compare("px4") == 0) { this->ap = MAVLinkAp::PX4; }
             else if (ap_name.compare("arducopter") == 0) { this->ap = MAVLinkAp::ARDUCOPTER; }
-            else if (ap_name.compare("arduplane") == 0) { this->ap = MAVLinkAp::ARDUPLANE; }
-            else { 
+            else if (ap_name.compare("arduplane") == 0) { 
+                this->ap = MAVLinkAp::ARDUPLANE; 
+                std::cout << "WARNING: Autopilot type" << ap_name << " not yet supported. " << std::endl;
+            } else {
                 std::cout << "Autopilot type " << ap_name << " not definied. Exiting" << std::endl;
                 std::raise(SIGINT);
             }
