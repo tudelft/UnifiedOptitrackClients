@@ -22,7 +22,7 @@ ADD ./src ./src
 ADD ./scripts ./scripts
 ADD ./CMakeLists.txt ./CMakeLists.txt
 
-RUN . /opt/ros/${ROS_DISTRO}/setup.sh && mkdir build && cd build && cmake -D'CLIENTS=ros2' .. && make
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && mkdir build && cd build && cmake -D'CLIENTS=ros2' .. && cmake --build .
 
 # Add the entrypoint script
 ADD ./dockerfiles/ros2_entrypoint.sh .

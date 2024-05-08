@@ -6,7 +6,7 @@ project(optitrack_clients LANGUAGES CXX)
 # ADD YOUR NEW CLIENT TO THIS SEMICOLON-SEPARATED LIST!
 if(NOT DEFINED CLIENTS)
     message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
+    set(CLIENTS "console;ivy;mavlink;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
 endif(NOT DEFINED CLIENTS)
 
 add_executable(client src/main.cpp src/pose_calculations.cpp src/unified_mocap_client.cpp)
@@ -90,4 +90,18 @@ if ("ros2px4" IN_LIST CLIENTS)
     ament_target_dependencies(client rclcpp geometry_msgs)
     target_link_libraries(client ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/libpx4_msgs__rosidl_typesupport_cpp.so)
     target_include_directories(client PUBLIC ./build/_deps/px4_msgs-build/rosidl_generator_cpp)
+endif()
+
+if ("mavlink" IN_LIST CLIENTS)
+    include(ExternalProject)
+    ExternalProject_Add(mavlink
+        GIT_REPOSITORY https://github.com/mavlink/mavlink
+        GIT_TAG 23eb98ca00032a7edc8b6ff1eb8914ec27c7b268
+        GIT_SUBMODULES_RECURSE TRUE
+        CMAKE_ARGS -H. -DCMAKE_INSTALL_PREFIX=install -DMAVLINK_DIALECT=common -DMAVLINK_VERSION=2.0
+        INSTALL_COMMAND cmake --build . --target install
+    )
+
+    add_dependencies(client mavlink)
+    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/mavlink-prefix/src/mavlink-build/install/include/)
 endif()
