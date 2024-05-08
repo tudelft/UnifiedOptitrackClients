@@ -1,14 +1,14 @@
 Currently supported clients:
 
-|        Client        | Means of Publishing                                                                  | Launch Command (Example)              |
-|:--------------------:|------------------------------------------------------|---------------------------------------|
-| `console` | Only to the terminal (if activated)                                                  | `mocap2console -c NED`                 |
-| `ivy`                | For the Ivy client                                                                   | `mocap2ivy -s 123`                   |
-| `mavlink`            | Stream data as MAVLink udp                                                           | `mocap2mavlink -s 123 --autopilot px4`                   |
-| `udp`                | Data as a UDP stream                                                                 | `mocap2udp -i 192.168.209.100 -p 25` |
-| `log`                | Data directly dumped into a file                                                     | `mocap2log -n myfile.csv`            |
-| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `mocap2ros2 --publish_topic UAV`     |
-| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `mocap2ros2px4 -f 120`               |
+|        Client        | Means of Publishing                                                                  | Launch Command (Example)               |
+|:--------------------:|--------------------------------------------------------------------------------------|----------------------------------------|
+| `console`            | Only to the terminal (if activated)                                                  | `mocap2console -c NED`                 |
+| `ivy`                | For the Ivy client                                                                   | `mocap2ivy -s 123`                     |
+| `mavlink`            | Stream data as MAVLink package over udp for PX4, Arducopter, and (soon) Arduplane    | `mocap2mavlink -s 123 --autopilot px4` |
+| `udp`                | Data as a UDP stream                                                                 | `mocap2udp -i 192.168.209.100 -p 25`   |
+| `log`                | Data directly dumped into a file                                                     | `mocap2log -n myfile.csv`              |
+| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `mocap2ros2 --publish_topic UAV`       |
+| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `mocap2ros2px4 -f 120`                 |
 
 Currently supported platforms:
 
@@ -29,7 +29,7 @@ mkdir build && cd build
 cmake -D'CLIENTS=console;ivy;ros2;ros2px4' .. && make
 ```
 
-## Prerequisites
+### Prerequisites
 
 Prerequisites vary per client. Currently, these are known:
 
@@ -37,7 +37,7 @@ Prerequisites vary per client. Currently, these are known:
 |:---------:|------------------------------------------------------------------------------------------|
 | `all`     | `libboost-all-dev` installed with `apt`                                       |
 | `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
-| `mavlink` | `python3-pip`                                                                            |
+| `mavlink` | `python3-pip` installed with apt                                                         |
 | `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
 | `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
 
@@ -61,7 +61,26 @@ The client expects the volume to be mounted under `/data`, i.e. the command woul
     docker run -it --net=host -v ./:/data logclient -s 1 -o data.csv
 
 
-How to write your own client?
+Notes on using the MAVLink client
+==============================
+
+Possibly the best way to forward the MAVLink UDP stream to your drone is to use [mavlink-router](https://github.com/mavlink-router/mavlink-router). You can download the latest glibc-x86 version from the release page of the github repo.
+
+The router connects to the drone via a serial telemetry radio device, or a UDP address (e.g. for Herelink). You then instruct the router to connect two other local UDP endpoints; one for unified_mocap_client and one for your groundstation (e.g. QGroundControl or MissionPlanner):
+
+    ./mavlink-routerd-glibc-x86_64 -t 0 -e 127.0.0.1:14553 -e 127.0.0.1:14554 /dev/ttyUSB0:57600
+
+In a different terminal, start the mocap client:
+
+    ./mocap2mavlink -s 1 -c NED -f 10 -p 14554 --autopilot arducopter
+
+You can now open your groundstation and connect to UDP port 14553.
+
+__Note__: it is currently untested what happens if multiple UAV are on the same
+mavlink network routed by mavlink-routerd!
+
+
+How to write a new client?
 ==============================
 
 To write your own client it has to inheret from the base class `UnifiedMocapClient` defined in `unified_mocap_client.hpp` and needs to implement the 
