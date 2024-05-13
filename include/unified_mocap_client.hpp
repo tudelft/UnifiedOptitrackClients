@@ -23,6 +23,8 @@ class UnifiedMocapClient
 private:
     float publish_dt;
     CoordinateSystem co;
+    ArenaDirection co_north;
+    float true_north_deg;
     ArenaDirection long_edge;
     ArenaDirection craft_nose;
     NatNetClient* pClient;

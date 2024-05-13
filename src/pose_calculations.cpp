@@ -1,6 +1,8 @@
 #include "pose_calculations.hpp"
 
 pose_t transform_pose(const CoordinateSystem co, 
+                      const ArenaDirection co_north,
+                      const float true_north_deg,
                       const UpAxis up_axis,
                       const ArenaDirection long_edge,
                       const ArenaDirection craft_nose,
@@ -102,33 +104,37 @@ pose_t transform_pose(const CoordinateSystem co,
         qy_copy = result.qy;
         qz_copy = result.qz;
 
-        float nose_rot_qw;
-        float nose_rot_qx = 0.;
-        float nose_rot_qy;
-        float nose_rot_qz = 0.;
+        float nose_rot_angle;
+        switch(craft_nose)
+        {
+            // left hand pi/2 rotation around Y axis (up)
+            case ArenaDirection::RIGHT: { nose_rot_angle = -M_PI/2.0; break; }
+            // no change, because this is what we have
+            case ArenaDirection::FAR_SIDE: { nose_rot_angle = 0.0; break; }
+            // right hand pi/2 rotation around Y axis (up)
+            case ArenaDirection::LEFT: { nose_rot_angle = M_PI/2.0; break; }
+            // pi rotation around Y
+            case ArenaDirection::NEAR_SIDE: { nose_rot_angle = M_PI; break; }
+        }
 
-        switch(craft_nose) {
-            case ArenaDirection::RIGHT:
-                // left hand pi/2 rotation around Y axis (up)
-                nose_rot_qw = -sqrt(2.0)/2.0;
-                nose_rot_qy =  sqrt(2.0)/2.0;
-                break;
-            case ArenaDirection::FAR_SIDE:
-                // no change, because this is what we have
-                nose_rot_qw = 1.0;
-                nose_rot_qy = 0.0;
-                break;
-            case ArenaDirection::LEFT:
-                // right hand pi/2 rotation around Y axis (up)
-                nose_rot_qw = sqrt(2.0)/2.0;
-                nose_rot_qy = sqrt(2.0)/2.0;
-                break;
-            case ArenaDirection::NEAR_SIDE:
-                // pi rotation around Y
-                nose_rot_qw =  0.0;
-                nose_rot_qy = -1.0;
+        float co_north_angle;
+        switch(co_north)
+        {
+            case ArenaDirection::RIGHT: { co_north_angle = -M_PI/2.0; break; }
+            case ArenaDirection::FAR_SIDE: { co_north_angle = 0.0; break; }
+            case ArenaDirection::LEFT: { co_north_angle = M_PI/2.0; break; }
+            case ArenaDirection::NEAR_SIDE: { co_north_angle = M_PI; break; }
+            case ArenaDirection::TRUE_NORTH:
+                co_north_angle = true_north_deg * M_PI / 180.0;
+                if (co == CoordinateSystem::NED)
+                    co_north_angle *= -1.0;
                 break;
         }
+
+        float nose_rot_qw = cos((nose_rot_angle - co_north_angle)/2);
+        float nose_rot_qx = 0.;
+        float nose_rot_qy = sin((nose_rot_angle - co_north_angle)/2);
+        float nose_rot_qz = 0.;
 
         // perform nose rotation as quaternion rotation https://gegcalculators.com/quaternion-multiplication-calculator-online/
         // result = q_copy * nose_rot  --> use some library here? does boost have quats?
@@ -136,7 +142,6 @@ pose_t transform_pose(const CoordinateSystem co,
         result.qx = qw_copy * nose_rot_qx + qx_copy * nose_rot_qw +  qy_copy * nose_rot_qz - qz_copy * nose_rot_qy;
         result.qy = qw_copy * nose_rot_qy - qx_copy * nose_rot_qz +  qy_copy * nose_rot_qw + qz_copy * nose_rot_qx;
         result.qz = qw_copy * nose_rot_qz + qx_copy * nose_rot_qy -  qy_copy * nose_rot_qx + qz_copy * nose_rot_qw;
-
 
         x_copy = result.x;
         y_copy = result.y;
@@ -151,22 +156,22 @@ pose_t transform_pose(const CoordinateSystem co,
         {
             case CoordinateSystem::ENU:
                 // Transform to ENU
-                result.x = z_copy;
-                result.y = x_copy;
+                result.x = +cos(co_north_angle) * z_copy + sin(co_north_angle) * x_copy;
+                result.y = -sin(co_north_angle) * z_copy + cos(co_north_angle) * x_copy;
                 result.z = y_copy;
 
-                result.qx = qz_copy;
-                result.qy = qx_copy;
+                result.qx = +cos(co_north_angle) * qz_copy + sin(co_north_angle) * qx_copy;
+                result.qy = -sin(co_north_angle) * qz_copy + cos(co_north_angle) * qx_copy;
                 result.qz = qy_copy;
                 break;
             case CoordinateSystem::NED:
                 // Transform to NED
-                result.x = x_copy;
-                result.y = z_copy;
+                result.x = +cos(co_north_angle) * x_copy - sin(co_north_angle) * z_copy;
+                result.y = +sin(co_north_angle) * x_copy + cos(co_north_angle) * z_copy;
                 result.z = -y_copy;
 
-                result.qx = qx_copy;
-                result.qy = qz_copy;
+                result.qx = +cos(co_north_angle) * qx_copy - sin(co_north_angle) * qz_copy;
+                result.qy = +sin(co_north_angle) * qx_copy + cos(co_north_angle) * qz_copy;
                 result.qz = -qy_copy;
                 break;
             default:

@@ -1,6 +1,7 @@
 #include "unified_mocap_client.hpp"
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <thread>
 #include <boost/algorithm/string.hpp>
@@ -76,7 +77,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 }
 
 UnifiedMocapClient::UnifiedMocapClient()
-    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, up_axis{UpAxis::NOTDETECTED}, printMessages{false},
+    : publish_dt{1.0 / 100.0}, streaming_ids{1}, co{CoordinateSystem::ENU}, co_north{ArenaDirection::FAR_SIDE}, true_north_deg{0.}, long_edge{ArenaDirection::RIGHT}, craft_nose{ArenaDirection::FAR_SIDE}, pClient{NULL}, up_axis{UpAxis::NOTDETECTED}, printMessages{false},
     nTrackedRB{0}, testMode{false}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -249,7 +250,8 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
         ("publish_frequency,f", po::value<float>(), "publishing frequency of the MoCap odometry")
         ("streaming_ids,s", po::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to track")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
-        ("long_edge,l", po::value<std::string>(), "direction of long edge during calibration [right, far_side, left, near_side]")
+        ("coordinate_north,r", po::value<std::string>(), "where north should be relative to the observer. Either non-zero number describing right-hand rotation of north axis from the far side, or one of [right, far_side, left, near_side].")
+        ("long_edge,l", po::value<std::string>(), "direction of long edge during Motive ground-plane calibration [right, far_side, left, near_side]")
         ("craft_nose,n", po::value<std::string>(), "direction of aircraft nose when creating the rigid body in Motive [right, far_side, left, near_side]")
         ("test", "Send test data instead")
     ;
@@ -309,8 +311,55 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
                   << this->co << std::endl;
     }
 
+    if(vm.count("coordinate_north"))
+    {
+        if (this->co == CoordinateSystem::UNCHANGED) {
+            std::cout << "Can only specify --coordinate_north/-r when coordinate system is not UNCHANGED. Exiting" << std::endl;
+            std::raise(SIGINT);
+        }
+        std::string co_north = vm["coordinate_north"].as<std::string>();
+        boost::algorithm::to_lower(co_north);
+
+        if(co_north.compare("right") == 0)
+        {
+            this->co_north = ArenaDirection::RIGHT;
+        }
+        else if(co_north.compare("far_side") == 0)
+        {
+            this->co_north = ArenaDirection::FAR_SIDE;
+        }
+        else if (co_north.compare("left") == 0)
+        {
+            this->co_north = ArenaDirection::LEFT;
+        }
+        else if (co_north.compare("near_side") == 0)
+        {
+            this->co_north = ArenaDirection::NEAR_SIDE;
+        }
+        else
+        {
+            this->co_north = ArenaDirection::TRUE_NORTH;
+            this->true_north_deg = std::atof(co_north.c_str());
+            if (this->true_north_deg == 0.0) {
+                std::cout << "Coordinate system argument " << co_north << " is neither [near_side, far_side, right, left], nor float (for 0.0 use far_side). Exiting" << std::endl;
+                std::raise(SIGINT);
+            }
+        }
+
+        std::cout << "Coordinate system north set to " << this->co_north << std::endl;
+    }
+    else
+    {
+        std::cout << "Coordinate System north not set, defaulting to "
+                  << this->co_north << std::endl;
+    }
+
     if(vm.count("long_edge"))
     {
+        if (this->co == CoordinateSystem::UNCHANGED) {
+            std::cout << "Can only specify --long_edge/-l when coordinate system is not UNCHANGED. Exiting" << std::endl;
+            std::raise(SIGINT);
+        }
         std::string le = vm["long_edge"].as<std::string>();
         boost::algorithm::to_lower(le);
 
@@ -345,6 +394,10 @@ void UnifiedMocapClient::read_po(int argc, char const *argv[])
 
     if(vm.count("craft_nose"))
     {
+        if (this->co == CoordinateSystem::UNCHANGED) {
+            std::cout << "Can only specify --craft_nose/-n when coordinate system is not UNCHANGED. Exiting" << std::endl;
+            std::raise(SIGINT);
+        }
         std::string le = vm["craft_nose"].as<std::string>();
         boost::algorithm::to_lower(le);
 
@@ -490,61 +543,79 @@ left │                          │ right )";
             }
             break;
         case CoordinateSystem::NED:
-            switch (this->long_edge)
+            switch (this->co_north)
             {
                 case ArenaDirection::RIGHT:
                     std::cout << R"( 
      │                          │
-     │   z  ⓧ → x              │
+     │   z  ⓧ → x               │
      │    y ↓                   │)";
                     break;
                 case ArenaDirection::FAR_SIDE:
                     std::cout << R"( 
      │    x ↑                   │
-     │   z  ⓧ → y              │
+     │   z  ⓧ → y               │
      │                          │)";
                     break;
                 case ArenaDirection::LEFT:
                     std::cout << R"( 
      │    y ↑                   │
-     │  x ← ⓧ z                │
+     │  x ← ⓧ z                 │
      │                          │)";
                     break;
                 case ArenaDirection::NEAR_SIDE:
                     std::cout << R"( 
      │                          │
-     │  y ← ⓧ z                │
+     │  y ← ⓧ z                 │
      │    x ↓                   │)";
                     break;
+                case ArenaDirection::TRUE_NORTH: {
+                    int rounded = static_cast<int>(std::round(this->true_north_deg));
+                    char sign = (this->true_north_deg < 0) ? '-' : '+';
+                    std::cout << R"( 
+     │north )" << sign << std::setw(3) << std::setfill(' ') << std::abs(rounded) << R"(° from far side │)" << R"(
+     │      ⓧ                   │
+     │     z                    │)";
+                    break;
+                }
             }
             break;
         case CoordinateSystem::ENU:
-            switch (this->long_edge)
+            switch (this->co_north)
             {
-                case ArenaDirection::RIGHT:
+                case ArenaDirection::FAR_SIDE:
                     std::cout << R"( 
      │    y ↑                   │
      │   z  ⊙ → x               │
      │                          │)";
                     break;
-                case ArenaDirection::FAR_SIDE:
+                case ArenaDirection::LEFT:
                     std::cout << R"( 
      │    x ↑                   │
      │  y ← ⊙ z                 │
      │                          │)";
                     break;
-                case ArenaDirection::LEFT:
+                case ArenaDirection::NEAR_SIDE:
                     std::cout << R"( 
      │                          │
      │  x ← ⊙ z                 │
      │    y ↓                   │)";
                     break;
-                case ArenaDirection::NEAR_SIDE:
+                case ArenaDirection::RIGHT:
                     std::cout << R"( 
      │                          │
      │   z  ⊙ → y               │
      │    x ↓                   │)";
                     break;
+                case ArenaDirection::TRUE_NORTH: {
+                    int rounded = static_cast<int>(std::round(this->true_north_deg));
+                    char sign = (this->true_north_deg < 0) ? '-' : '+';
+                    std::cout << R"( 
+     │north )" << sign << std::setw(3) << std::setfill(' ') << std::abs(rounded) << R"(° from far side │)" << R"(
+     │      ⊙                   │
+     │     z                    │)";
+                    break;
+                }
             }
             break;
 
@@ -555,7 +626,8 @@ left │                          │ right )";
      +──────────────────────────+
      │    Observers  (near)     │
      └──────────────────────────┘
-    )" << std::endl;
+     Assuming calibration triangle 
+     long-edge has pointed to )" << this->long_edge << std::endl;
 }
 
 ErrorCode UnifiedMocapClient::connectAndDetectServerSettings()
@@ -737,19 +809,22 @@ void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 
         /* Transform the pose to the desired coordinate system */
         newPose = transform_pose(this->co,
+                                this->co_north,
+                                this->true_north_deg,
                                 this->up_axis,
                                 this->long_edge,
                                 this->craft_nose,
                                 newPose);
 
         /* Thread safely setting the new values */
-        this->setPoseDerRB(idx, derFilter[idx].apply(newPose));
+        pose_der_t newPoseDer = derFilter[idx].apply(newPose);
+        this->setPoseDerRB(idx, newPoseDer);
         this->setPoseRB(idx, newPose);
 
         if (this->printMessages) {
 		    printf("Incoming Rigid Body Data Frame [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
-		    printf("\tx\ty\tz\tqx\tqy\tqz\tqw\n");
-		    printf("\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
+		    printf("\t\tx\ty\tz\tqx\tqy\tqz\tqw\n");
+		    printf("Incoming: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
 		    	data->RigidBodies[i].x,
 		    	data->RigidBodies[i].y,
 		    	data->RigidBodies[i].z,
@@ -757,14 +832,22 @@ void UnifiedMocapClient::natnet_data_handler(sFrameOfMocapData* data)
 		    	data->RigidBodies[i].qy,
 		    	data->RigidBodies[i].qz,
 		    	data->RigidBodies[i].qw);
-            printf("\tvx\tvy\tvz\twx\twy\twz\n");
-		    printf("\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
-                poseDerRB[idx].x,
-                poseDerRB[idx].y,
-                poseDerRB[idx].z,
-                poseDerRB[idx].wx,
-                poseDerRB[idx].wy,
-                poseDerRB[idx].wz);
+		    printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
+		    	newPose.x,
+		    	newPose.y,
+		    	newPose.z,
+		    	newPose.qx,
+		    	newPose.qy,
+		    	newPose.qz,
+		    	newPose.qw);
+            printf("\t\tvx\tvy\tvz\twx\twy\twz\n");
+		    printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n\n",
+                newPoseDer.x,
+                newPoseDer.y,
+                newPoseDer.z,
+                newPoseDer.wx,
+                newPoseDer.wy,
+                newPoseDer.wz);
         }
     }
 

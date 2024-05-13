@@ -28,9 +28,11 @@ typedef struct pose_der_s {
 
 enum CoordinateSystem { UNCHANGED=0, NED, ENU};
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
-enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE};
+enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE, TRUE_NORTH};
 
 pose_t transform_pose(const CoordinateSystem co,
+                      const ArenaDirection co_north,
+                      const float true_north_deg,
                       const UpAxis up_axis,
                       const ArenaDirection long_edge,
                       const ArenaDirection craft_nose,
