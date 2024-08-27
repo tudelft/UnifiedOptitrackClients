@@ -19,10 +19,10 @@ cmake_minimum_required(VERSION 3.14)
 project(optitrack_clients LANGUAGES CXX)
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
-if(NOT DEFINED AGENT)
-    message(STATUS "AGENT is not set. Continuing with all agents")
-    set(AGENT "console;ivy;mavlink;udp;log;ros2;ros2px4" CACHE STRING "Agents to build into the binary")
-endif(NOT DEFINED AGENT)
+if(NOT DEFINED AGENTS)
+    message(STATUS "AGENTS is not set. Continuing with all agents")
+    set(AGENTS "console;ivy;mavlink;udp;log;ros2;ros2px4" CACHE STRING "Agents to build into the binary")
+endif(NOT DEFINED AGENTS)
 
 add_executable(client src/main.cpp src/pose_calculations.cpp src/unified_mocap_client.cpp)
 
