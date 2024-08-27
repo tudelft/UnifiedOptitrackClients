@@ -19,13 +19,13 @@ RUN add-apt-repository -y ppa:paparazzi-uav/ppa && apt-get update && apt-get ins
 
 # Add copy of local workspace 
 WORKDIR /home/
-ADD ./clients ./clients
+ADD ./agents ./agents
 ADD ./include ./include
 ADD ./src ./src
 ADD ./scripts ./scripts
 ADD ./CMakeLists.txt ./CMakeLists.txt
 
-RUN mkdir build && cd build && cmake -D'CLIENTS=ivy' .. && make
+RUN mkdir build && cd build && cmake -D'AGENTS=ivy' .. && cmake --build .
 
 # Add the entrypoint script
 ADD ./dockerfiles/ivy_entrypoint.sh .

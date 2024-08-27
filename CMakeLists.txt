@@ -3,24 +3,24 @@ cmake_minimum_required(VERSION 3.14)
 # project and executables
 project(optitrack_clients LANGUAGES CXX)
 
-# ADD YOUR NEW CLIENT TO THIS SEMICOLON-SEPARATED LIST!
-if(NOT DEFINED CLIENTS)
-    message(STATUS "CLIENTS is not set. Continuing with all clients")
-    set(CLIENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Clients to build into the binary")
-endif(NOT DEFINED CLIENTS)
+# ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
+if(NOT DEFINED AGENT)
+    message(STATUS "AGENT is not set. Continuing with all agents")
+    set(AGENT "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Agents to build into the binary")
+endif(NOT DEFINED AGENT)
 
 add_executable(client src/main.cpp src/pose_calculations.cpp src/unified_mocap_client.cpp)
 
-foreach(x ${CLIENTS})
+foreach(x ${AGENTS})
     string(TOUPPER ${x} uppercase)
-    add_definitions(-DUSE_CLIENT_${uppercase})
+    add_definitions(-DUSE_AGENT_${uppercase})
     ADD_CUSTOM_TARGET(${x}_symlink ALL
                       COMMAND ${CMAKE_COMMAND} -E create_symlink client mocap2${x}
                       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endforeach()
 
 include_directories(include)
-include_directories(clients)
+include_directories(agents)
 include_directories(scripts)
 
 # compiler
@@ -31,7 +31,7 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
-# find external libraries and include for all clients
+# find external libraries and include for all agents
 find_package(Boost REQUIRED COMPONENTS program_options filesystem)
 include_directories(${Boost_INCLUDE_DIRS})
 target_link_libraries(client ${Boost_LIBRARIES})
@@ -48,7 +48,7 @@ target_include_directories(natnet_sdk INTERFACE ${natnet_sdk_content_SOURCE_DIR}
 target_link_libraries(client natnet_sdk)
 
 # Client-specific stuff
-if ("ivy" IN_LIST CLIENTS)
+if ("ivy" IN_LIST AGENTS)
     find_library(IVY_LIB NAMES ivy)
     target_link_libraries(client ivy)
 
@@ -62,11 +62,11 @@ if ("ivy" IN_LIST CLIENTS)
     target_link_libraries(client ${GLIB_LIBRARIES})
 endif()
 
-if ("udp" IN_LIST CLIENTS)
+if ("udp" IN_LIST AGENTS)
     find_package(Boost REQUIRED COMPONENTS system)
 endif()
 
-if ("ros2" IN_LIST CLIENTS)
+if ("ros2" IN_LIST AGENTS)
     find_package(ament_cmake REQUIRED)
     find_package(rclcpp REQUIRED)
     find_package(geometry_msgs REQUIRED)
@@ -74,7 +74,8 @@ if ("ros2" IN_LIST CLIENTS)
     ament_target_dependencies(client rclcpp geometry_msgs)
 endif()
 
-if ("ros2px4" IN_LIST CLIENTS)
+if ("ros2px4" IN_LIST AGENTS)
+    # px4msgs is BSD 3 clause licensed
     FetchContent_Declare(
       px4_msgs
       GIT_REPOSITORY https://github.com/PX4/px4_msgs

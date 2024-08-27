@@ -1,5 +1,5 @@
-#ifndef ROS2_CLIENT_HPP
-#define ROS2_CLIENT_HPP
+#ifndef ROS2_AGENT_HPP
+#define ROS2_AGENT_HPP
 
 #include "unified_mocap_client.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -7,7 +7,7 @@
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "std_msgs/msg/string.hpp"
 
-#ifdef USE_CLIENT_ROS2PX4
+#ifdef USE_AGENT_ROS2PX4
 #include <chrono>
 #include "px4_msgs/msg/vehicle_odometry.hpp"
 #include "px4_msgs/msg/timesync_status.hpp"
@@ -23,7 +23,7 @@ public:
                                 "--log-level", "rclcpp:=error"})),
                     _topics{"/mocap"}
 
-#ifdef USE_CLIENT_ROS2PX4
+#ifdef USE_AGENT_ROS2PX4
                     , _px4_topics{"/fmu/in/vehicle_visual_odometry"}
 #endif                    
     {  
@@ -40,7 +40,7 @@ public:
     {
         desc.add_options()
             ("publish_topics,t", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish on.")
-#ifdef USE_CLIENT_ROS2PX4
+#ifdef USE_AGENT_ROS2PX4
             ("px4_ids,p", boost::program_options::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to publish on px4 topics")
             ("px4_topics,o", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish the px4 msgs on")
 #endif
@@ -59,7 +59,7 @@ public:
             for(std::string topic : this->_topics) std::cout << " " << topic;
             std::cout << " }" << std::endl;
         }
-#ifdef USE_CLIENT_ROS2PX4
+#ifdef USE_AGENT_ROS2PX4
         if(vm.count("px4_ids"))
         {
             this->_px4_streaming_ids = vm["px4_ids"].as<std::vector<unsigned int>>();
@@ -104,7 +104,7 @@ public:
             this->_twist_publishers.push_back(this->create_publisher<geometry_msgs::msg::TwistStamped>((this->_topics.at(i) + ("/twist")).c_str(), 10));
         } 
 
-#ifdef USE_CLIENT_ROS2PX4
+#ifdef USE_AGENT_ROS2PX4
 
         if(this->_px4_topics.size() != this->_px4_streaming_ids.size())
         {
@@ -169,7 +169,7 @@ public:
                 twist_msg.twist.angular.y = twist.wy;
                 twist_msg.twist.angular.z = twist.wz;
 
-                #ifdef USE_CLIENT_ROS2PX4
+                #ifdef USE_AGENT_ROS2PX4
                 /* If the current object is also in the list of ids
                  * that should be published on a px4 topic */
                 if(std::find(this->_px4_streaming_ids.begin(),
@@ -213,7 +213,7 @@ private:
     std::vector<rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr> _pose_publishers;
     std::vector<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr> _twist_publishers;
 
-#ifdef USE_CLIENT_ROS2PX4
+#ifdef USE_AGENT_ROS2PX4
     std::vector<rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr> _px4_publishers;
     rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr _timesync_sub;
 
@@ -285,4 +285,4 @@ private:
 
 };
 
-#endif //ROS2_CLIENT_HPP
+#endif //ROS2_AGENT_HPP

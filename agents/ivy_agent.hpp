@@ -1,4 +1,8 @@
+#ifndef IVY_AGENT_HPP
+#define IVY_AGENT_HPP
+
 #include "unified_mocap_client.hpp"
+
 #include <glib.h>
 #include <Ivy/ivy.h>
 #include <Ivy/ivyglibloop.h>
@@ -91,3 +95,5 @@ private:
     std::vector<unsigned int> _ac_id;
     std::string bip;
 };
+
+#endif // ifndef IVY_AGENT_HPP

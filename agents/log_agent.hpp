@@ -1,9 +1,16 @@
+#ifndef LOG_AGENT_HPP
+#define LOG_AGENT_HPP
+
 #include "unified_mocap_client.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
+
+#ifndef LOG_AGENT_HPP
+#define LOG_AGENT_HPP
+#endif // ifndef LOG_AGENT_HPP
 
 enum LogType {CSV = 0};
 
@@ -101,3 +108,5 @@ private:
     std::string _logFilename;
     std::ofstream _logFile;
 };
+
+#endif // ifndef LOG_AGENT_HPP

@@ -12,13 +12,13 @@ RUN apt-get update && apt-get upgrade -y \
 
 # Add copy of local workspace 
 WORKDIR /home/
-ADD ./clients ./clients
+ADD ./agents ./agents
 ADD ./include ./include
 ADD ./src ./src
 ADD ./scripts ./scripts
 ADD ./CMakeLists.txt ./CMakeLists.txt
 
-RUN mkdir build && cd build && cmake -D'CLIENTS=console' .. && make
+RUN mkdir build && cd build && cmake -D'AGENTS=console' .. && cmake --build .
 
 # Add the entrypoint script
 ADD ./dockerfiles/console_entrypoint.sh .
