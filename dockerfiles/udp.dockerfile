@@ -12,13 +12,13 @@ RUN apt-get update && apt-get upgrade -y \
 
 # Add copy of local workspace 
 WORKDIR /home/
-ADD ./clients ./clients
+ADD ./agents ./agents
 ADD ./include ./include
 ADD ./src ./src
 ADD ./scripts ./scripts
 ADD ./CMakeLists.txt ./CMakeLists.txt
 
-RUN mkdir build && cd build && cmake -D'CLIENTS=udp' .. && make
+RUN mkdir build && cd build && cmake -D'AGENTS=udp' .. && make
 
 # Add the entrypoint script
 ADD ./dockerfiles/udp_entrypoint.sh .

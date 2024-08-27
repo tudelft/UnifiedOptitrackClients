@@ -1,3 +1,6 @@
+#ifndef CONSOLE_AGENT_HPP
+#define CONSOLE_AGENT_HPP
+
 #include "unified_mocap_client.hpp"
 
 #include <iostream>
@@ -102,3 +105,5 @@ private:
 private:
     // can be used for extra class members
 };
+
+#endif // ifndef CONSOLE_AGENT_HPP

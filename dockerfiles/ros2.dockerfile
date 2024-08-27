@@ -16,13 +16,13 @@ RUN apt-get update && apt-get upgrade -y \
 
 # Add copy of local workspace 
 WORKDIR /home/
-ADD ./clients ./clients
+ADD ./agents ./agents
 ADD ./include ./include
 ADD ./src ./src
 ADD ./scripts ./scripts
 ADD ./CMakeLists.txt ./CMakeLists.txt
 
-RUN . /opt/ros/${ROS_DISTRO}/setup.sh && mkdir build && cd build && cmake -D'CLIENTS=ros2' .. && cmake --build .
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && mkdir build && cd build && cmake -D'AGENTS=ros2' .. && cmake --build .
 
 # Add the entrypoint script
 ADD ./dockerfiles/ros2_entrypoint.sh .

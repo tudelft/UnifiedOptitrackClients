@@ -2,29 +2,29 @@
 
 #include "unified_mocap_client.hpp"
 
-#ifdef USE_CLIENT_CONSOLE
-    #include "console_client.hpp"
+#ifdef USE_AGENT_CONSOLE
+    #include "console_agent.hpp"
 #endif
 
-#ifdef USE_CLIENT_IVY
-    #include "ivy_client.hpp"
+#ifdef USE_AGENT_IVY
+    #include "ivy_agent.hpp"
 #endif
 
-#ifdef USE_CLIENT_UDP
-    #include "udp_client.hpp"
+#ifdef USE_AGENT_UDP
+    #include "udp_agent.hpp"
 #endif
 
-#ifdef USE_CLIENT_LOG
-    #include "log_client.hpp"
+#ifdef USE_AGENT_LOG
+    #include "log_agent.hpp"
 #endif
 
-#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
-    #include "ros2_client.hpp"
+#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)
+    #include "ros2_agent.hpp"
     #include "rclcpp/rclcpp.hpp"
 #endif
 
-#if defined(USE_CLIENT_MAVLINK)
-    #include "mavlink_client.hpp"
+#if defined(USE_AGENT_MAVLINK)
+    #include "mavlink_agent.hpp"
 #endif
 
 namespace{
@@ -39,7 +39,7 @@ int main(int argc, char const *argv[])
     shutdown_handler = [p](int signum) 
     { 
         std::cout << "Shutting down... Done. " << std::endl;
-#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)  
+#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)  
         if (p.filename() == "mocap2ros2"
             || p.filename() == "mocap2ros2px4")
         {
@@ -51,32 +51,32 @@ int main(int argc, char const *argv[])
 
 	signal(SIGINT, signal_handler);
 
-#ifdef USE_CLIENT_CONSOLE
+#ifdef USE_AGENT_CONSOLE
     if (p.filename() == "mocap2console") {
-        Mocap2Console client = Mocap2Console();
-        client.start(argc, argv);
+        Mocap2Console agent = Mocap2Console();
+        agent.start(argc, argv);
     } else
 #endif
 
-#ifdef USE_CLIENT_IVY
+#ifdef USE_AGENT_IVY
     if (p.filename() == "mocap2ivy") {
-        Mocap2Ivy client = Mocap2Ivy(); client.start(argc, argv);
+        Mocap2Ivy agent = Mocap2Ivy(); agent.start(argc, argv);
     } else 
 #endif
 
-#ifdef USE_CLIENT_UDP
+#ifdef USE_AGENT_UDP
     if (p.filename() == "mocap2udp") {
-        Mocap2Udp client = Mocap2Udp(); client.start(argc, argv);
+        Mocap2Udp agent = Mocap2Udp(); agent.start(argc, argv);
     } else 
 #endif
 
-#ifdef USE_CLIENT_LOG
+#ifdef USE_AGENT_LOG
     if (p.filename() == "mocap2log") {
-        Mocap2Log client = Mocap2Log(); client.start(argc, argv);
+        Mocap2Log agent = Mocap2Log(); agent.start(argc, argv);
     } else 
 #endif
 
-#if defined(USE_CLIENT_ROS2) || defined(USE_CLIENT_ROS2PX4)
+#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)
 
     if (p.filename() == "mocap2ros2" || p.filename() == "mocap2ros2px4") {
         // Init ROS2
@@ -85,23 +85,23 @@ int main(int argc, char const *argv[])
         // Disable Default logger
         rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
 
-        // Init Client
-        Mocap2Ros2 client = Mocap2Ros2();
+        // Init agent
+        Mocap2Ros2 agent = Mocap2Ros2();
 
         // Start the thread
-        client.start(argc, argv);
+        agent.start(argc, argv);
     }
 #endif
 
-#ifdef USE_CLIENT_MAVLINK
+#ifdef USE_AGENT_MAVLINK
     if (p.filename() == "mocap2mavlink") {
-        Mocap2Mavlink client = Mocap2Mavlink(); 
-        client.start(argc, argv);
+        Mocap2Mavlink agent = Mocap2Mavlink(); 
+        agent.start(argc, argv);
     } else 
 #endif
 
     {
-        std::cout << "Support for client " << p.filename() << "was not compiled into the program." << std::endl;
+        std::cout << "Support for agent " << p.filename() << "was not compiled into the program." << std::endl;
         return 1;
     }
 

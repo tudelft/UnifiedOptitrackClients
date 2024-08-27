@@ -1,3 +1,6 @@
+#ifndef MAVLINK_AGENT_HPP
+#define MAVLINK_AGENT_HPP
+
 #include "unified_mocap_client.hpp"
 
 #include <iostream>
@@ -377,3 +380,5 @@ private:
     MAVLinkAp ap;
     bool _heartbeat_received = false;
 };
+
+#endif // ifndef MAVLINK_AGENT_HPP

@@ -1,4 +1,8 @@
+#ifndef UDP_AGENT_HPP
+#define UDP_AGENT_HPP
+
 #include "unified_mocap_client.hpp"
+
 #include <unistd.h>
 #include <csignal>
 #include "boost/asio.hpp"
@@ -113,3 +117,5 @@ private:
     ip::udp::socket _socket;
     ip::udp::endpoint _remote_endpoint;
 };
+
+#endif // ifndef UDP_AGENT_HPP
