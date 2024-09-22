@@ -16,6 +16,27 @@
 #include <boost/filesystem.hpp>
 
 #include "unified_mocap_client.hpp"
+#include "mocap.hpp"
+#include "agent.hpp"
+
+
+#ifdef USE_MOCAP_TEST
+    #include "test_mocap.hpp"
+#endif
+
+#ifdef USE_MOCAP_OPTITRACK
+    #include "optitrack_mocap.hpp"
+#endif
+
+#ifdef USE_MOCAP_VICON
+    #include "vicon_mocap.hpp"
+#endif
+
+#ifdef USE_MOCAP_QUALISYS
+    #include "qualisys_mocap.hpp"
+#endif
+
+
 
 #ifdef USE_AGENT_CONSOLE
     #include "console_agent.hpp"
@@ -45,15 +66,84 @@ namespace{
 
 int main(int argc, char const *argv[])
 {
-    boost::filesystem::path p(argv[0]);
+    if (argc < 3) {
+        return 1;
+    }
 
+
+    Mocap* mocap = nullptr;
+#ifdef USE_MOCAP_TEST
+    if (strcasecmp(argv[1], "test") == 0) {
+        mocap = new TestMocap();
+    } else
+#endif
+#ifdef USE_MOCAP_OPTITRACK
+    if (strcasecmp(argv[1], "optitrack") == 0) {
+        mocap = new OptiTrackMocap();
+    } else
+#endif
+#ifdef USE_MOCAP_VICON
+    if (strcasecmp(argv[1], "vicon") == 0) {
+        mocap = new ViconMocap();
+    } else
+#endif
+#ifdef USE_MOCAP_QUALISYS
+    if (strcasecmp(argv[1], "qualisys") == 0) {
+        mocap = new QualisysMocap();
+    } else
+#endif
+    {
+        std::cout << "Support for Mocap '" << argv[1] << "' has not been compiled into the program. exiting." << std::endl;
+        return 1;
+    }
+
+
+    Agent* agent = nullptr;
+#ifdef USE_AGENT_CONSOLE
+    if (strcasecmp(argv[2], "console") == 0) {
+        agent = new ConsoleAgent();
+    } else
+#endif
+#ifdef USE_AGENT_IVY
+    if (strcasecmp(argv[2], "ivy") == 0) {
+        agent = new IvyAgent();
+    } else 
+#endif
+#ifdef USE_AGENT_UDP
+    if (strcasecmp(argv[2], "udp") == 0) {
+        agent = new UdpAgent();
+    } else 
+#endif
+#ifdef USE_AGENT_LOG
+    if (strcasecmp(argv[2], "log") == 0) {
+        agent = new LogAgent();
+    } else 
+#endif
+#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)
+    if (strcasecmp(argv[2], "ros2") == 0 || strcasecmp(argv[2], "ros2px4") == 0) {
+        // Init ROS2
+        rclcpp::init(argc-2, argv+2);
+
+        // Disable Default logger
+        rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
+
+        // Init agent
+        agent = new Ros2Agent();
+    }
+#endif
+    {
+        std::cout << "Support for agent '" << argv[2] << "' was not compiled into the program. exiting." << std::endl;
+        return 1;
+    }
+
+
+    // enroll shutdown handler
+    boost::filesystem::path p(argv[0]);
     shutdown_handler = [p](int signum) 
     { 
         std::cout << "Shutting down... Done. " << std::endl;
 #if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)  
-        if (p.filename() == "mocap2ros2"
-            || p.filename() == "mocap2ros2px4")
-        {
+        if (strcasecmp(argv[2]) == "ros2" || strcasecmp(argv[2]) == "ros2px4") {
             rclcpp::shutdown();
         }
 #endif
@@ -62,52 +152,10 @@ int main(int argc, char const *argv[])
 
 	signal(SIGINT, signal_handler);
 
-#ifdef USE_AGENT_CONSOLE
-    if (p.filename() == "mocap2console") {
-        Mocap2Console agent = Mocap2Console();
-        agent.start(argc, argv);
-    } else
-#endif
 
-#ifdef USE_AGENT_IVY
-    if (p.filename() == "mocap2ivy") {
-        Mocap2Ivy agent = Mocap2Ivy(); agent.start(argc, argv);
-    } else 
-#endif
-
-#ifdef USE_AGENT_UDP
-    if (p.filename() == "mocap2udp") {
-        Mocap2Udp agent = Mocap2Udp(); agent.start(argc, argv);
-    } else 
-#endif
-
-#ifdef USE_AGENT_LOG
-    if (p.filename() == "mocap2log") {
-        Mocap2Log agent = Mocap2Log(); agent.start(argc, argv);
-    } else 
-#endif
-
-#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)
-
-    if (p.filename() == "mocap2ros2" || p.filename() == "mocap2ros2px4") {
-        // Init ROS2
-        rclcpp::init(argc, argv);
-
-        // Disable Default logger
-        rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
-
-        // Init agent
-        Mocap2Ros2 agent = Mocap2Ros2();
-
-        // Start the thread
-        agent.start(argc, argv);
-    }
-#endif
-    {
-        std::cout << "Support for agent " << p.filename() << "was not compiled into the program." << std::endl;
-        return 1;
-    }
+    // construct and run client
+    UnifiedMocapClient client = UnifiedMocapClient(mocap, agent);
+    client.start(argc-2, argv+2); // pointer arithmetic magic
 
     return 0;
 }
-

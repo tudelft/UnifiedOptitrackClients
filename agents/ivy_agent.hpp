@@ -16,7 +16,7 @@
 #ifndef IVY_AGENT_HPP
 #define IVY_AGENT_HPP
 
-#include "unified_mocap_client.hpp"
+#include "agent.hpp"
 
 #include <glib.h>
 #include <Ivy/ivy.h>
@@ -25,7 +25,7 @@
 #include <unistd.h>
 #include <csignal>
 
-class Mocap2Ivy : public UnifiedMocapClient
+class Mocap2Ivy : public Agent
 {
 public:
     Mocap2Ivy()
@@ -90,20 +90,15 @@ public:
         IvyMainLoop();
     }
 
-    void publish_data() override
+    bool publish_data(int rb_id, int streaming_id, pose_t& pose, pose_der_t& pose_der) override
     {
-        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        {
-            if (this->isUnpublishedRB(i)) {
-                pose_t pose = this->getPoseRB(i);
-                pose_der_t pose_der = this->getPoseDerRB(i);
-                IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
-                    _ac_id[i], pose.timeUs/1000,  //todo: probably not the right timestamp
-                    pose.x, pose.y, pose.z,
-                    pose_der.x, pose_der.y, pose_der.z,
-                    pose.qw, pose.qx, pose.qy, pose.qz);
-            }
-        }
+        IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
+            _ac_id[rb_id], pose->timeUs/1000,  //todo: probably not the right timestamp
+            pose->x, pose->y, pose->z,
+            pose_der->x, pose_der->y, pose_der->z,
+            pose->qw, pose->qx, pose->qy, pose->qz);
+
+        return true;
     }
 
 private:

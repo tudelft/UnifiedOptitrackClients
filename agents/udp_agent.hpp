@@ -16,7 +16,7 @@
 #ifndef UDP_AGENT_HPP
 #define UDP_AGENT_HPP
 
-#include "unified_mocap_client.hpp"
+#include "agent.hpp"
 
 #include <unistd.h>
 #include <csignal>
@@ -24,22 +24,27 @@
 
 using namespace boost::asio;
 
-class Mocap2Udp : public UnifiedMocapClient
+class UdpAgent : public Agent
 {
 public:
-    Mocap2Udp() : _socket{_io_service}
+    UdpAgent() : _socket{_io_service}
     {
+    }
+
+    ~UdpAgent()
+    {
+        this->_socket.close();
+    }
+
+    void banner() override
+    {
+        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
-##  _   _ ___  ___  #############################################################
+##  _  _  __   __   ##
 ## | | | |   \| _ \ ##
 ## | |_| | |) |  _/ ##
 ##  \___/|___/|_|   ##
-######################
-)" << std::endl;
-    }
-    ~Mocap2Udp()
-    {
-        this->_socket.close();
+######################)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
@@ -71,18 +76,18 @@ public:
             this->_port = 5005;
         }
 
-        if (this->getStreamingIds().size() > 1) {
-            std::cout << "Number of streaming_ids and ac_ids must be equal to 1 for the udp client. Multiple not (yet) supported"
-                << std::endl;
-            std::raise(SIGINT);
-        }
+        //if (this->getStreamingIds().size() > 1) {
+        //    std::cout << "Number of streaming_ids and ac_ids must be equal to 1 for the udp client. Multiple not (yet) supported"
+        //        << std::endl;
+        //    std::raise(SIGINT);
+        //}
 
         if(vm.count("ac_id")) {
             this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
-            if ( this->_ac_id.size() != this->getStreamingIds().size() ) {
-                std::cout << "Number of ac_ids must be equal to streaming_ids" << std::endl;
-                std::raise(SIGINT);
-            }
+            //if ( this->_ac_id.size() != this->getStreamingIds().size() ) {
+            //    std::cout << "Number of ac_ids must be equal to streaming_ids" << std::endl;
+            //    std::raise(SIGINT);
+            //}
             std::cout << "AC IDs set to";
             for(unsigned int id : this->_ac_id) std::cout << " " << id << " ";
             std::cout << std::endl;
@@ -98,30 +103,24 @@ public:
         this->_socket.open(ip::udp::v4());
     }
 
-    void publish_data() override
+    bool publish_data(int idx, pose_t& pose, pose_der_t& pose_der) override
     {
         static constexpr size_t Ni = sizeof(this->_ac_id[0]);
         static constexpr size_t Np = sizeof(pose_t);
         static constexpr size_t Nd = sizeof(pose_der_t);
 
-        unsigned int i = 0;
+        uint8_t buf[Ni+Np+Nd];
+        memcpy(buf, &(this->_ac_id[idx]), Ni);
+        memcpy(buf+Ni, &pose, Np);
+        memcpy(buf+Ni+Np, &pose_der, Nd);
 
-        //for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        //{
-            if (this->isUnpublishedRB(i)) {
-                pose_t pose = this->getPoseRB(i);
-                pose_der_t pose_der = this->getPoseDerRB(i);
-                uint8_t buf[Ni+Np+Nd];
-                memcpy(buf, &(this->_ac_id[i]), Ni);
-                memcpy(buf+Ni, &pose, Np);
-                memcpy(buf+Ni+Np, &pose_der, Nd);
-
-                boost::system::error_code err;
-                auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
-                if (err.failed())
-                    std::cout << "Failed with error " << err << std::endl;
-            }
-        //}
+        boost::system::error_code err;
+        auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
+        if (err.failed()) {
+            std::cout << "Failed with error " << err << std::endl;
+            return false;
+        }
+        return true;
     }
 
 private:
