@@ -152,3 +152,13 @@ Afterward, the agent needs to be added to the `CMakeList.txt` file and added to 
 ## How to add support for a different Motion Capture System?
 
 Please open an Issue and we'll support you!
+
+
+# FAQ
+
+ROS: source workspace and import libraries
+
+```
+source /opt/ros/humble/setup.bash
+export LD_LIBRARY_PATH=../build/_deps/px4_msgs-build:${LD_LIBRARY_PATH}
+```

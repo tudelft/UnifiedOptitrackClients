@@ -85,7 +85,7 @@ public:
         else
         {   
             // By default we take the first streaming id
-            this->_px4_streaming_ids.push_back(this->get_streaming_ids().at(0));
+            this->_px4_streaming_ids.push_back(this->getStreamingIds().at(0));
 
             std::cout << "PX4 Streaming IDs not set, defaulting to";
             for(unsigned int id : this->_px4_streaming_ids) std::cout << " " << id << " ";
@@ -107,7 +107,7 @@ public:
 
     void pre_start() override
     {
-        if(this->_topics.size() != this->get_streaming_ids().size())
+        if(this->_topics.size() != this->getStreamingIds().size())
         {
             std::cerr << "Number of topics does not match number of streaming ids. Exiting." << std::endl;
             std::raise(SIGINT);
@@ -137,7 +137,7 @@ public:
     void publish_data() override
     {
         // Copy the streaming ids
-        std::vector<unsigned int> streaming_ids = this->get_streaming_ids();
+        std::vector<unsigned int> streaming_ids = this->getStreamingIds();
 
         for(unsigned int i = 0; i < this->_pose_publishers.size(); i++)
         {   

@@ -16,32 +16,35 @@
 #ifndef CONSOLE_AGENT_HPP
 #define CONSOLE_AGENT_HPP
 
-#include "unified_mocap_client.hpp"
+#include "agent.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 
-class Mocap2Console : public UnifiedMocapClient
+class ConsoleAgent : public Agent
 {
 public:
-    Mocap2Console()
+    ConsoleAgent()
     {
-        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
-        std::cout<< R"(
-##   ___                  _      ################################################
-##  / __|___ _ _  ___ ___| |___  ##
-## | (__/ _ \ ' \(_-</ _ \ / -_) ##
-##  \___\___/_||_/__/\___/_\___| ##
-###################################
-)" << std::endl;
         // do as little setup here as possible. Use pre_start instead
     }
 
-    ~Mocap2Console()
+    ~ConsoleAgent()
     {
         // put cleanup here if needed
+    }
+
+    void banner() override
+    {
+        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
+        std::cout<< R"(
+##   ___                  _      ##
+##  / __|___ _ _  ___ ___| |___  ##
+## | (__/ _ \ ' \(_-</ _ \ / -_) ##
+##  \___\___/_||_/__/\___/_\___| ##
+###################################)" << std::endl;
     }
 
 private:
@@ -94,27 +97,20 @@ private:
     }
     */
 
-    void publish_data() override
+    bool publish_data(int idx, pose_t& pose, pose_der_t& pose_der) override
     {
-        // this gets called every this->publish_dt seconds. Publish data here.
+        // this gets called every this->publish_dt seconds on all bodies to be 
+        // published. Implement your sending routine here.
         // for instance, this is how to just print the z-position of all tracked bodies
 
         // don't run anything expensive in here, just publishing
 
         /*
-        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        {
-            if (this->isUnpublishedRB(i)) {
-                unsigned int streaming_id = this->getStreamingIds()[i];
-
-                pose_t pose = this->getPoseRB(i);
-                //pose_der_t pose_der = this->getPoseDerRB(i); // derivative
-
-                std::cout << "Rigid body with streaming id " << streaming_id 
-                << " has z position " << pose.z << std::endl;
-            }
+        std::cout << "Rigid body with streaming id " << streaming_id 
+                    << " has z position " << pose->z << std::endl;
         }
         */
+       return true;
     }
 
 private:
