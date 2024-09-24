@@ -25,7 +25,7 @@ add_executable(client ${SOURCES})
 if(NOT DEFINED MOCAPS)
     message(STATUS "MOCAPS is not set. Continuing with all mocaps")
     #set(MOCAPS "test,optitrack,vicon,qualisys" CACHE STRING "Mocaps to build into the binary")
-    set(MOCAPS "test" CACHE STRING "Mocaps to build into the binary")
+    set(MOCAPS "test;optitrack;qualisys" CACHE STRING "Mocaps to build into the binary")
 endif(NOT DEFINED MOCAPS)
 
 if(NOT DEFINED AGENTS)

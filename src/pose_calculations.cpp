@@ -197,6 +197,43 @@ pose_t transform_pose(const CoordinateSystem co,
     return result;
 }
 
+void quaternion_of_rotationMatrix(quaternion_t *q, const rotationMatrix_t *r) {
+    // https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+    float trace = r->m[0][0] + r->m[1][1] + r->m[2][2];
+    float s, si;
+    if (trace > 1e-6f) {
+        s = 0.5f * sqrtf( 1.0f + trace );
+        si = 0.25f / s;
+        q->w = s;
+        q->x = si * ( r->m[2][1] - r->m[1][2] );
+        q->y = si * ( r->m[0][2] - r->m[2][0] );
+        q->z = si * ( r->m[1][0] - r->m[0][1] );
+    } else {
+        if ( r->m[0][0] > r->m[1][1] && r->m[0][0] > r->m[2][2] ) {
+            s = 0.5f * sqrtf( 1.0f + r->m[0][0] - r->m[1][1] - r->m[2][2]);
+            si = 0.25f / s;
+            q->w = si * (r->m[2][1] - r->m[1][2] );
+            q->x = s;
+            q->y = si * (r->m[0][1] + r->m[1][0] );
+            q->z = si * (r->m[0][2] + r->m[2][0] );
+        } else if (r->m[1][1] > r->m[2][2]) {
+            s = 0.5f * sqrtf( 1.0f + r->m[1][1] - r->m[0][0] - r->m[2][2]);
+            si = 0.25f / s;
+            q->w = si * (r->m[0][2] - r->m[2][0] );
+            q->x = si * (r->m[0][1] + r->m[1][0] );
+            q->y = s;
+            q->z = si * (r->m[1][2] + r->m[2][1] );
+        } else {
+            s = 0.5f * sqrtf( 1.0f + r->m[2][2] - r->m[0][0] - r->m[1][1] );
+            si = 0.25f / s;
+            q->w = si * (r->m[1][0] - r->m[0][1] );
+            q->x = si * (r->m[0][2] + r->m[2][0] );
+            q->y = si * (r->m[1][2] + r->m[2][1] );
+            q->z = s;
+        }
+    }
+}
+
 void PureDifferentiator::newSample(pose_t newPose)
 {
     int64_t delta = newPose.timeUs - _pose.timeUs; // does this deal with overflows?

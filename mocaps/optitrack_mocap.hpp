@@ -157,7 +157,6 @@ public:
 
     int connect() override
     {
-        return ErrorCode_OK;
         ErrorCode ret;
 
         static constexpr unsigned int DISCOVERY_TIMEOUT = 1000;
