@@ -53,6 +53,18 @@ pose_t transform_pose(const CoordinateSystem co,
                       const ArenaDirection craft_nose,
                       const pose_t newPose);
 
+typedef struct quaternions_s {
+    float w;
+    float x;
+    float y;
+    float z;
+} quaternion_t;
+
+typedef struct rotationMatrix_s {
+    float m[3][3];
+} rotationMatrix_t;
+
+void quaternion_of_rotationMatrix(quaternion_t *q, const rotationMatrix_t *r);
 
 class PureDifferentiator
 {
