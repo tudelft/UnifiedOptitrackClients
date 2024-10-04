@@ -15,6 +15,7 @@
 
 #include "pose_calculations.hpp"
 
+/*
 pose_t transform_pose(const CoordinateSystem co, 
                       const ArenaDirection co_north,
                       const float true_north_deg,
@@ -196,6 +197,7 @@ pose_t transform_pose(const CoordinateSystem co,
 
     return result;
 }
+*/
 
 void quaternion_of_rotationMatrix(quaternion_t *q, const rotationMatrix_t *r) {
     // https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
@@ -248,9 +250,9 @@ void PoseDifferentiator::newSample(pose_t newPose)
 
     float iDelta = 1.0 / (static_cast<float>(delta) * 1e-6f);
     _unfiltered.timeUs = newPose.timeUs;
-    _unfiltered.x = iDelta * (newPose.x - _pose.x);
-    _unfiltered.y = iDelta * (newPose.y - _pose.y);
-    _unfiltered.z = iDelta * (newPose.z - _pose.z);
+    _unfiltered.vx = iDelta * (newPose.x - _pose.x);
+    _unfiltered.vy = iDelta * (newPose.y - _pose.y);
+    _unfiltered.vz = iDelta * (newPose.z - _pose.z);
 
     // https://mariogc.com/post/angular-velocity-quaternions/
     float q1[4] = {_pose.qw, _pose.qx, _pose.qy, _pose.qz};
@@ -295,9 +297,9 @@ twist_t FilteredPoseDifferentiator::apply(pose_t newPose)
         return _filtered;
 
     if (_initialized) {
-        _filtered.x = _kVel * _filtered.x  +  (1.-_kVel) * _unfiltered.x; 
-        _filtered.y = _kVel * _filtered.y  +  (1.-_kVel) * _unfiltered.y; 
-        _filtered.z = _kVel * _filtered.z  +  (1.-_kVel) * _unfiltered.z; 
+        _filtered.vx = _kVel * _filtered.vx  +  (1.-_kVel) * _unfiltered.vx; 
+        _filtered.vy = _kVel * _filtered.vy  +  (1.-_kVel) * _unfiltered.vy; 
+        _filtered.vz = _kVel * _filtered.vz  +  (1.-_kVel) * _unfiltered.vz; 
         _filtered.wx = _kRate * _filtered.wx  +  (1.-_kRate) * _unfiltered.wx;
         _filtered.wy = _kRate * _filtered.wy  +  (1.-_kRate) * _unfiltered.wy; 
         _filtered.wz = _kRate * _filtered.wz  +  (1.-_kRate) * _unfiltered.wz; 

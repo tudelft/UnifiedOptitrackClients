@@ -44,7 +44,6 @@ private:
 
     //FilteredPoseDifferentiator derFilter[MAX_TRACKED_RB];
 
-    Agent* agent;
 
     //void publish_loop(void) {
     //    if (this->agent) {
@@ -55,47 +54,49 @@ private:
     //}
 
 protected:
-    double fSample;
+    Agent* agent;
+    std::vector<RigidBody> RBs;
+    //double fSample;
 
-    void processNewPose(int idx, pose_t& newPose) {
-        // calculate derivative
-        twist_t newPoseDer = derFilter[idx].apply(newPose);
+    //void processNewPose(int idx, pose_t& newPose) {
+    //    // calculate derivative
+    //    twist_t newPoseDer = derFilter[idx].apply(newPose);
 
-        /* Thread safely setting the new values */
-        // Lock respective mutex
-        this->poseMutexes[idx].lock();
-            memcpy(&(this->poseRB[idx]), &newPose, sizeof(pose_t));
-        this->poseMutexes[idx].unlock();
+    //    /* Thread safely setting the new values */
+    //    // Lock respective mutex
+    //    this->poseMutexes[idx].lock();
+    //        memcpy(&(this->poseRB[idx]), &newPose, sizeof(pose_t));
+    //    this->poseMutexes[idx].unlock();
 
-        this->poseDerMutexes[idx].lock();
-            memcpy(&(this->poseDerRB[idx]), &newPoseDer, sizeof(twist_t));
-        this->poseDerMutexes[idx].unlock();
+    //    this->poseDerMutexes[idx].lock();
+    //        memcpy(&(this->poseDerRB[idx]), &newPoseDer, sizeof(twist_t));
+    //    this->poseDerMutexes[idx].unlock();
 
-        // set unpublished
-        this->unpublishedDataRB[idx] = true;
+    //    // set unpublished
+    //    this->unpublishedDataRB[idx] = true;
 
-        // no throttling for now, TODO
-        if (this->agent) {
-            this->agent->print_data(idx, newPose, newPoseDer);
-            this->agent->publish_data(idx, newPose, newPoseDer);
-        }
-    };
+    //    // no throttling for now, TODO
+    //    if (this->agent) {
+    //        this->agent->print_data(idx, newPose, newPoseDer);
+    //        this->agent->publish_data(idx, newPose, newPoseDer);
+    //    }
+    //};
 
-    int trackRB(unsigned int id) {
-        int i = this->getIndexRB(id);
-        if (i > -1) { return i; } // already tracked, that's fine
-        if (this->nTrackedRB >= MAX_TRACKED_RB) { return -1; } // cannot add, too many RBs
-        this->trackedRB[this->nTrackedRB] = id;
-        return this->nTrackedRB++;
-    };
+    //int trackRB(unsigned int id) {
+    //    int i = this->getIndexRB(id);
+    //    if (i > -1) { return i; } // already tracked, that's fine
+    //    if (this->nTrackedRB >= MAX_TRACKED_RB) { return -1; } // cannot add, too many RBs
+    //    this->trackedRB[this->nTrackedRB] = id;
+    //    return this->nTrackedRB++;
+    //};
 
-    int getIndexRB(int id) { 
-        for (unsigned int i=0; i < this->nTrackedRB; i++) {
-            if (this->trackedRB[i] == id)
-                return i;
-        }
-        return -1;
-    };
+    //int getIndexRB(int id) { 
+    //    for (unsigned int i=0; i < this->nTrackedRB; i++) {
+    //        if (this->trackedRB[i] == id)
+    //            return i;
+    //    }
+    //    return -1;
+    //};
 
 public:
     Mocap();
@@ -103,6 +104,9 @@ public:
     ~Mocap();
     void enroll_agent(Agent *a) {
         this->agent = a;
+    }
+    void track_rigid_body( RigidBody& rb ) {
+        this->RBs.push_back(rb);
     }
 
     virtual void banner();
@@ -117,32 +121,32 @@ public:
 
     //unsigned int getStreamingId(unsigned int i) { return this->streaming_ids[i]; };
     //std::vector<unsigned int> getStreamingIds() { return this->streaming_ids; };
-    int8_t getNTrackedRB()                      { return this->nTrackedRB; }
-    int getIdRB(unsigned int idx)               { return this->trackedRB[idx]; }
-    bool isUnpublishedRB(unsigned int idx)      { return this->unpublishedDataRB[idx]; }
-    pose_t getPoseRB(unsigned int idx){
-        // Lock respective mutex
-        this->poseMutexes[idx].lock();
-            pose_t pose(this->poseRB[idx]);
-        this->poseMutexes[idx].unlock();
-        return pose;
-    };
-    twist_t getPoseDerRB(unsigned int idx){
-        // Lock respective mutex
-        this->poseDerMutexes[idx].lock();
-            twist_t twist(this->poseDerRB[idx]);
-        this->poseDerMutexes[idx].unlock();
-        return twist;
-    };
-    void setPublishedRB(unsigned int idx)
-    {
-        this->unpublishedDataRB[idx] = false;
-    }
-    void setPublishedAllRB(void)
-    {
-        for (unsigned int idx = 0; idx < getNTrackedRB(); idx++)
-            this->unpublishedDataRB[idx] = false;
-    }
+    //int8_t getNTrackedRB()                      { return this->nTrackedRB; }
+    //int getIdRB(unsigned int idx)               { return this->trackedRB[idx]; }
+    //bool isUnpublishedRB(unsigned int idx)      { return this->unpublishedDataRB[idx]; }
+    //pose_t getPoseRB(unsigned int idx){
+    //    // Lock respective mutex
+    //    this->poseMutexes[idx].lock();
+    //        pose_t pose(this->poseRB[idx]);
+    //    this->poseMutexes[idx].unlock();
+    //    return pose;
+    //};
+    //twist_t getPoseDerRB(unsigned int idx){
+    //    // Lock respective mutex
+    //    this->poseDerMutexes[idx].lock();
+    //        twist_t twist(this->poseDerRB[idx]);
+    //    this->poseDerMutexes[idx].unlock();
+    //    return twist;
+    //};
+    //void setPublishedRB(unsigned int idx)
+    //{
+    //    this->unpublishedDataRB[idx] = false;
+    //}
+    //void setPublishedAllRB(void)
+    //{
+    //    for (unsigned int idx = 0; idx < getNTrackedRB(); idx++)
+    //        this->unpublishedDataRB[idx] = false;
+    //}
 };
 
 

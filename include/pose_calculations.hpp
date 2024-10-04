@@ -90,16 +90,16 @@ class PoseDifferentiator
 class FilteredPoseDifferentiator : public PoseDifferentiator
 {
     private:
-        double _fBreakVel;
-        double _fBreakRate;
-        double _fSample;
-        double _kVel;
-        double _kRate;
+        float _fBreakVel;
+        float _fBreakRate;
+        float _fSample;
+        float _kVel;
+        float _kRate;
         twist_t _filtered;
         bool _initialized;
 
     public:
-        FilteredPoseDifferentiator(double fBreakVel, double fBreakRate, double fSample);
+        FilteredPoseDifferentiator(float fBreakVel, float fBreakRate, float fSample);
 
         FilteredPoseDifferentiator() : FilteredPoseDifferentiator(1., 1., 1.) {
             // C++11

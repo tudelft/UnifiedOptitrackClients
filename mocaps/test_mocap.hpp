@@ -26,6 +26,7 @@
 
 #include <unistd.h>
 #include <termios.h>
+#include <chrono>
 
 namespace po = boost::program_options;
 
@@ -63,7 +64,7 @@ public:
         //    ("listofint,i", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")
         //;
         desc.add_options()
-            ("freq", po::value<float>(), "Test Mocap new sample frequency")
+            ("test_freq", po::value<float>(), "Test Mocap new sample frequency")
             ;
     }
 
@@ -86,16 +87,16 @@ public:
         }
         */
 
-        if (vm.count("freq") == 1) {
-            this->freq = vm["freq"].as<float>();
+        if (vm.count("test_freq") == 1) {
+            this->freq = vm["test_freq"].as<float>();
             this->freq = (this->freq > 1.f) ? this->freq : 1.f; // limit to 1Hz min
         } else {
-            std::cout << "--freq must be given exactly once." << std::endl;
+            std::cout << "--test_freq must be given exactly once." << std::endl;
             std::raise(SIGINT);
         }
 
         // simulate tracking of one RB
-        this->trackRB(0);
+        //this->trackRB(0);
     }
 
     int connect() override
@@ -120,13 +121,20 @@ public:
     // Simply a method send test data to the pipeline
     void send_test_data(int intervalMs) {
         while (!stopFlag) {
+            auto now = std::chrono::high_resolution_clock::now();
+            auto duration = now.time_since_epoch();
+            uint64_t microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+
             pose_t newPose {
-                0,
+                microseconds,
                 1.f, 2.f, 3.f,      // position
                 0.f, 0.f, 0.f, 1.f  // quaternion (x,y,z,w)
             };
 
-            this->processNewPose(0, newPose);
+            for (auto& rb : this->RBs) {
+                rb.setNewPoseENU(newPose);
+                this->agent->new_data_available( this->RBs );
+            }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
         }

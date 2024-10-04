@@ -24,16 +24,26 @@
 #include <thread>
 
 #include "pose_calculations.hpp"
+#include "rigid_body.hpp"
 
 class Agent
 {
 private:
 protected:
     bool printMessages;
+    unsigned int publish_every;
+    CoordinateSystem csys;
+    ArenaDirection north_dir;
+    float true_north_deg;
 public:
     Agent();
     Agent(const Agent &other);
     ~Agent();
+
+    void set_publish_divisor( unsigned int div );
+    void set_csys( CoordinateSystem csys );
+    void set_north( ArenaDirection dir, float true_north_deg);
+    void new_data_available( std::vector<RigidBody>& RBs );
 
     virtual void banner();
 

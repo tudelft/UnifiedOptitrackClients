@@ -14,8 +14,9 @@
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "agent.hpp"
+#include "pose_calculations.hpp"
 
-Agent::Agent() : printMessages{false}
+Agent::Agent() : printMessages{false}, publish_every{1}, csys{CoordinateSystem::NED}
 {
 }
 
@@ -32,6 +33,40 @@ Agent::~Agent()
 
 void Agent::banner()
 {
+}
+
+void Agent::set_publish_divisor( unsigned int div ) {
+    if (div > 0) {
+        this->publish_every = div;
+    }
+}
+void Agent::set_csys( CoordinateSystem csys ) {
+    this->csys = csys;
+}
+
+void Agent::set_north( ArenaDirection dir, float true_north_deg) {
+    this->north_dir = dir;
+    this->true_north_deg = true_north_deg;
+}
+
+void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
+    for (size_t i = 0; i < RBs.size(); ++i) {
+        if ((RBs[i].getNumUnpublishedSamples() % this->publish_every) == 0) {
+            pose_t pose = RBs[i].getPoseIn(this->csys);
+            twist_t twist = RBs[i].getTwistIn(this->csys);
+            this->publish_data(
+                i,
+                pose,
+                twist
+            );
+            this->print_data(
+                i,
+                pose,
+                twist
+            );
+            RBs[i].setPublished();
+        }
+    }
 }
 
 void Agent::print_data(int idx, pose_t& pose, twist_t& twist)
