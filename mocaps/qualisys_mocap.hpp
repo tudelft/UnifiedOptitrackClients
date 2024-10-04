@@ -161,9 +161,6 @@ public:
             std::cout << "No QTM udp port given. Assume 12345" << std::endl;
             this->mocap_udp_port = 12345;
         }
-
-        // track only the first RB
-        this->trackRB(0);
     }
 
     int connect() override
@@ -242,13 +239,17 @@ public:
                     quat.x, quat.y, quat.z, quat.w
                     };
 
-                this->processNewPose(0, newPose);
+                if (this->RBs.size() > 0) {
+                    this->RBs[0].setNewPoseENU( newPose );
+                }
 
                 // only the first body gets read
                 i = header.ComponentCount;
                 break;
             }
         }
+
+        this->agent->new_data_available( this->RBs );
 
 bail_out:
         //std::cout << header.Type << std::endl;

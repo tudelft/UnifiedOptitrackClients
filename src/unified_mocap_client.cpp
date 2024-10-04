@@ -213,7 +213,11 @@ void UnifiedMocapClient::start(int argc, const char *argv[])
     this->mocap->parse_extra_po(this->vm);
     this->agent->parse_extra_po(this->vm);
 
-    this->mocap->connect();
+    int ret = this->mocap->connect();
+    if (ret != 0) {
+        std::cout << "Error connecting to mocap server. exiting" << std::endl;
+        std::raise(SIGINT); 
+    }
 
     //this->print_coordinate_system();
 
@@ -255,6 +259,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
         exit(0);
     }
 
+    CoordinateSystem co;
     if(vm.count("coordinate_system"))
     {
         std::string co_name = vm["coordinate_system"].as<std::string>();
@@ -262,20 +267,26 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
 
         //if(co_name.compare("unchanged") == 0) { this->co = CoordinateSystem::UNCHANGED; }
         //else
-        if(co_name.compare("ned") == 0) { this->co = CoordinateSystem::NED; }
-        else if (co_name.compare("enu") == 0) { this->co = CoordinateSystem::ENU; }
+        if(co_name.compare("ned") == 0) { co = CoordinateSystem::NED; }
+        else if (co_name.compare("enu") == 0) { co = CoordinateSystem::ENU; }
         else {
             std::cout << "Coordinate system " << co_name << " not definied. Exiting" << std::endl;
             std::raise(SIGINT);
         }
-        std::cout << "Coordinate system set to " << this->co << std::endl;
+        std::cout << "Coordinate system set to " << co << std::endl;
     }
     else
     {
-        std::cout << "Coordinate System not set, defaulting to "
-                  << this->co << std::endl;
+        std::cout << "Coordinate System not set, exiting" << std::endl;
+                  //<< co << std::endl;
+        std::raise(SIGINT);
     }
 
+    this->agent->set_csys(co);
+
+
+    ArenaDirection north;
+    float true_north_deg = 0.f;
     if(vm.count("coordinate_north"))
     {
         //if (this->co == CoordinateSystem::UNCHANGED) {
@@ -287,37 +298,41 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
 
         if(co_north.compare("right") == 0)
         {
-            this->co_north = ArenaDirection::RIGHT;
+            north = ArenaDirection::RIGHT;
         }
         else if(co_north.compare("far_side") == 0)
         {
-            this->co_north = ArenaDirection::FAR_SIDE;
+            north = ArenaDirection::FAR_SIDE;
         }
         else if (co_north.compare("left") == 0)
         {
-            this->co_north = ArenaDirection::LEFT;
+            north = ArenaDirection::LEFT;
         }
         else if (co_north.compare("near_side") == 0)
         {
-            this->co_north = ArenaDirection::NEAR_SIDE;
+            north = ArenaDirection::NEAR_SIDE;
         }
         else
         {
-            this->co_north = ArenaDirection::TRUE_NORTH;
-            this->true_north_deg = std::atof(co_north.c_str());
-            if (this->true_north_deg == 0.0) {
+            north = ArenaDirection::TRUE_NORTH;
+            true_north_deg = std::atof(co_north.c_str());
+            if (true_north_deg == 0.0) {
                 std::cout << "Coordinate system argument " << co_north << " is neither [near_side, far_side, right, left], nor float (for 0.0 use far_side). Exiting" << std::endl;
                 std::raise(SIGINT);
             }
+
         }
 
-        std::cout << "Coordinate system north set to " << this->co_north << std::endl;
+        std::cout << "Coordinate system north set to " << co_north << std::endl;
     }
     else
     {
-        std::cout << "Coordinate System north not set, defaulting to "
-                  << this->co_north << std::endl;
+        std::cout << "Coordinate System north not set, exiting" << std::endl;
+        //          << this->co_north << std::endl;
+        std::raise(SIGINT);
     }
+
+    this->agent->set_north(north, true_north_deg);
 
     if (vm.count("publish_frequency") + vm.count("publish_divisor") != 1) {
         std::cout << "must pass either --publish_frequency/-f or --publish_divisor/-d" << std::endl;
@@ -341,6 +356,8 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
                   << this->publish_div << " th sample that will be received." << std::endl;
     }
 
+    this->agent->set_publish_divisor(this->publish_div);
+
     if(vm.count("streaming_ids"))
     {
         this->streaming_ids = vm["streaming_ids"].as<std::vector<unsigned int>>();
@@ -356,7 +373,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
 
     if(vm.count("craft_noses"))
     {
-        this->craft_nose_strings = vm["craft_noses"].as<std::vector<std::string>();
+        this->craft_nose_strings = vm["craft_noses"].as<std::vector<std::string>>();
         if (this->craft_nose_strings.size() != this->streaming_ids.size()) {
             std::cout << "Streaming IDs input must be the same length as craft_noses!" << std::endl;
         }
@@ -389,7 +406,8 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
             }
 
             std::cout << "Creating rigid body with streaming id " << this->streaming_ids[i] << " and nose direction " << dir << std::endl;
-            this->trackedRBs.push_back(new RigidBody( dir ));
+            RigidBody* rb = new RigidBody( this->streaming_ids[i], dir );
+            this->mocap->track_rigid_body(*rb);
         }
     }
     else

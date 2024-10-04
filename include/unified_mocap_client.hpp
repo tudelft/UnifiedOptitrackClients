@@ -27,6 +27,8 @@
 #include "mocap.hpp"
 #include "agent.hpp"
 
+#include "pose_calculations.hpp"
+
 char getch(void);
 
 class UnifiedMocapClient
@@ -40,13 +42,6 @@ private:
 
     std::vector<unsigned int> streaming_ids;
     std::vector<std::string> craft_nose_strings;
-
-    ArenaDirection co_north;
-    float true_north_deg;
-
-    unsigned int nTrackedRB;
-    std::vector<ArenaDirection> craft_nose;
-    std::vector<RigidBody> trackedRBs;
 
     void banner();
     void add_base_po();

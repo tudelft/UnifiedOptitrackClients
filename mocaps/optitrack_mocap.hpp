@@ -20,6 +20,7 @@
 #include <mutex>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
+#include <algorithm> // For std::find
 
 #include <iostream>
 #include <csignal>
@@ -201,19 +202,19 @@ public:
         }
 
         // detect frame rate
-        std::cout<<"Detecting frame rate... ";
-        ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
-        if (ret == ErrorCode_OK) {
-            this->fSample = (double) *((float*)response);
-            std::cout << this->fSample << "Hz";
-            if (this->fSample < (1.0 / this->publish_dt))
-                std::cout << " WARNING: Publish frequency was set higher which has no effect: incomming messages will only be published once.";
+        //std::cout<<"Detecting frame rate... ";
+        //ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
+        //if (ret == ErrorCode_OK) {
+        //    this->fSample = (double) *((float*)response);
+        //    std::cout << this->fSample << "Hz";
+        //    if (this->fSample < (1.0 / this->publish_dt))
+        //        std::cout << " WARNING: Publish frequency was set higher which has no effect: incomming messages will only be published once.";
 
-            std::cout << std::endl;
-        } else {
-            std::cout << "Error code " << ret << std::endl;
-            return ret;
-        }
+        //    std::cout << std::endl;
+        //} else {
+        //    std::cout << "Error code " << ret << std::endl;
+        //    return ret;
+        //}
 
         // detect up axis
         std::cout<<"Detecting up axis... ";
@@ -249,19 +250,22 @@ public:
         // loop over bodies in frame and process the ones we listen to
         bool printedHeader = false;
 	    for (int i=0; i < data->nRigidBodies; i++) {
+            unsigned int rb_id = data->RigidBodies[i].ID;
 
-            int idx = this->getIndexRB(data->RigidBodies[i].ID);
-            if (idx == -1)
+            RigidBody* theRb = nullptr;
+            for (auto& rb : this->RBs) {
+                if (rb.id == rb_id) {
+                    theRb = &rb;
+                }
+            }
+
+            if (!theRb) {
                 continue; // untracked by us
+            }
 
             bool bTrackingValid = data->RigidBodies[i].params & 0x01;
             if (!bTrackingValid)
                 continue;
-
-            //if ( (this->printMessages) && (!printedHeader) ) {
-            //    std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us. Tracked bodies:" << std::endl;
-            //    printedHeader = true;
-            //}
 
             pose_t newPose {
                 timeAtExpoUs,
@@ -274,9 +278,12 @@ public:
                 data->RigidBodies[i].qw,
             };
 
-            this->processNewPose(idx, newPose);
+            // TODO: convert!!!
 
+            theRb->setNewPoseENU( newPose );
         }
+
+        this->agent->new_data_available( this->RBs );
 
         //if ( (this->printMessages) && (!printedHeader) )
         //    std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us, but none are tracked." << std::endl;
