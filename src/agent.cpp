@@ -51,7 +51,7 @@ void Agent::set_north( ArenaDirection dir, float true_north_deg) {
 
 void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
     for (size_t i = 0; i < RBs.size(); ++i) {
-        if ((RBs[i].getNumUnpublishedSamples() % this->publish_every) == 0) {
+        if (((RBs[i].getNumUnpublishedSamples() + 1) % this->publish_every) == 0) {
             pose_t pose = RBs[i].getPoseIn(this->csys);
             twist_t twist = RBs[i].getTwistIn(this->csys);
             this->publish_data(
@@ -73,7 +73,7 @@ void Agent::print_data(int idx, pose_t& pose, twist_t& twist)
 {
     if ( this->printMessages ) {
         //printf("Incoming Rigid Body Data Frame [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
-        //printf("\t\tx\ty\tz\tqx\tqy\tqz\tqw\n");
+        printf("\t\tx\ty\tz\tqx\tqy\tqz\tqw\n");
         //printf("Incoming: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
         //    data->RigidBodies[i].x,
         //    data->RigidBodies[i].y,

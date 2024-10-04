@@ -240,7 +240,7 @@ public:
                     };
 
                 if (this->RBs.size() > 0) {
-                    this->RBs[0].setNewPoseENU( newPose );
+                    this->RBs[0].setNewPoseENU_NorthFarSide( newPose );
                 }
 
                 // only the first body gets read

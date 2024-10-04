@@ -24,7 +24,7 @@ class RigidBody
 
         pose_t getPoseIn(CoordinateSystem co);
         twist_t getTwistIn(CoordinateSystem co);
-        void setNewPoseENU(pose_t& newPose);
+        void setNewPoseENU_NorthFarSide(pose_t& newPose);
         void setPublished() { this->unpublished_samples = 0; };
         unsigned int getNumUnpublishedSamples() { return this->unpublished_samples; };
 };
