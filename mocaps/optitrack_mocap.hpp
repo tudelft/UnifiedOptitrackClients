@@ -71,49 +71,18 @@ public:
         //    ("listofint,i", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")
         //;
         desc.add_options()
-            ("streaming_ids,s", po::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to track")
             ("long_edge,l", po::value<std::string>(), "direction of long edge during Motive ground-plane calibration [right, far_side, left, near_side]")
         ;
     }
 
     void parse_extra_po(const boost::program_options::variables_map &vm) override
     {
-        /*
-        if (vm.count("dontmindme")) {
-            // value can be accessed with vm["dontmindme"].as<std::string>();
-            std::cout << "Give user some feedback about the chosen" << vm["dontmindme"].as<std::string>() << std::endl;
-        } else {
-            // fail if not found, or use some default value
-            std::cout << "dontmindme not specified. aborting..." << std::endl;
-            std::raise(SIGINT);
-        }
-
-        if (vm.count("listofint")) {
-            // values can be accessed via vm["listofint"].as<std::vector<unsigned int>>();
-        } else {
-            // do something
-        }
-        */
-
-        if(vm.count("streaming_ids"))
-        {
-            this->streaming_ids = vm["streaming_ids"].as<std::vector<unsigned int>>();
-            std::cout << "Streaming IDs set to";
-            for(unsigned int id : this->streaming_ids) std::cout << " " << id << " ";
-            std::cout << std::endl;
-        }
-        else
-        {
-            std::cout << "Streaming IDs not set" <<std::endl;
-            exit(1);
-        }
-
         if(vm.count("long_edge"))
         {
-            if (this->co == CoordinateSystem::UNCHANGED) {
-                std::cout << "Can only specify --long_edge/-l when coordinate system is not UNCHANGED. Exiting" << std::endl;
-                std::raise(SIGINT);
-            }
+            //if (this->co == CoordinateSystem::UNCHANGED) {
+            //    std::cout << "Can only specify --long_edge/-l when coordinate system is not UNCHANGED. Exiting" << std::endl;
+            //    std::raise(SIGINT);
+            //}
             std::string le = vm["long_edge"].as<std::string>();
             boost::algorithm::to_lower(le);
 
@@ -144,14 +113,6 @@ public:
         {
             std::cout << "Long Edge direction not set, defaulting to "
                       << this->long_edge << std::endl;
-        }
-
-        // do stuff with the parsed arguments:
-        // process streaming ids
-        for (unsigned int i : this->streaming_ids) {
-            if (this->trackRB(i) == -1) {
-                std::cout << "Cannot track Rigid Body with streaming id " << i << ". Too many rigid bodies." << std::endl;
-            }
         }
     }
 
@@ -328,7 +289,6 @@ private:
     sNatNetClientConnectParams connectParams;
     sServerDescription serverConfig;
     UpAxis up_axis;
-    std::vector<unsigned int> streaming_ids;
     CoordinateSystem co;
     ArenaDirection long_edge;
     float publish_dt;

@@ -90,12 +90,12 @@ public:
         IvyMainLoop();
     }
 
-    bool publish_data(int rb_id, int streaming_id, pose_t& pose, pose_der_t& pose_der) override
+    bool publish_data(int rb_id, int streaming_id, pose_t& pose, twist_t& twist) override
     {
         IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
             _ac_id[rb_id], pose->timeUs/1000,  //todo: probably not the right timestamp
             pose->x, pose->y, pose->z,
-            pose_der->x, pose_der->y, pose_der->z,
+            twist->x, twist->y, twist->z,
             pose->qw, pose->qx, pose->qy, pose->qz);
 
         return true;

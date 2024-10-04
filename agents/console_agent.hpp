@@ -53,8 +53,8 @@ private:
         // add extra commandlien options if you need to.
         // avoid those already used in UnifiedMocapClient::read_po()
         //desc.add_options()
-        //    ("dontmindme,d", boost::program_options::value<std::string>(), "Optimal extra argument for demonstration purposes")
-        //    ("listofint,i", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")
+        //    ("dontmindme", boost::program_options::value<std::string>(), "Optimal extra argument for demonstration purposes")
+        //    ("listofint", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")
         //;
     }
 
@@ -97,7 +97,7 @@ private:
     }
     */
 
-    bool publish_data(int idx, pose_t& pose, pose_der_t& pose_der) override
+    bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
         // this gets called every this->publish_dt seconds on all bodies to be 
         // published. Implement your sending routine here.

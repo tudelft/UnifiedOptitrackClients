@@ -146,7 +146,7 @@ public:
             {
                 // Get the current pose and twist
                 pose_t pose = this->getPoseRB(i);
-                pose_der_t twist = this->getPoseDerRB(i);
+                twist_t twist = this->getPoseDerRB(i);
 
                 // Init Message
                 geometry_msgs::msg::PoseStamped pose_msg{};
@@ -176,9 +176,9 @@ public:
                 pose_msg.pose.orientation.y = pose.qy;
                 pose_msg.pose.orientation.z = pose.qz;
 
-                twist_msg.twist.linear.x = twist.x;
-                twist_msg.twist.linear.y = twist.y;
-                twist_msg.twist.linear.z = twist.z;
+                twist_msg.twist.linear.x = twist.vx;
+                twist_msg.twist.linear.y = twist.vy;
+                twist_msg.twist.linear.z = twist.vz;
                 
                 twist_msg.twist.angular.x = twist.wx;
                 twist_msg.twist.angular.y = twist.wy;
@@ -208,7 +208,7 @@ public:
                     /* Then store */
                     px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
                     px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
-                    px4_vehicle_odometry.velocity = {twist.x, twist.y, twist.z};
+                    px4_vehicle_odometry.velocity = {twist.vx, twist.vy, twist.vz};
                     px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
 
                     // Publish
@@ -271,20 +271,20 @@ private:
         return result;
     }
 
-    pose_der_t toNED(const pose_der_t pose_der) const
+    twist_t toNED(const twist_t twist) const
     {
-        pose_der_t result = pose_der;
+        twist_t result = twist;
 
         switch(this->getCO())
         {
             case CoordinateSystem::ENU:
-                result.x = pose_der.y;
-                result.y = pose_der.x;
-                result.z = -pose_der.z;
+                result.x = twist.vy;
+                result.y = twist.vx;
+                result.z = -twist.vz;
 
-                result.wx = pose_der.wy;
-                result.wy = pose_der.wx;
-                result.wz = -pose_der.wz;
+                result.wx = twist.wy;
+                result.wy = twist.wx;
+                result.wz = -twist.wz;
                 break;
             case CoordinateSystem::NED:
                 // We do nothing because this is what we want to have

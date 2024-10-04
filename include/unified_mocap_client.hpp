@@ -36,11 +36,17 @@ private:
     Agent* agent;
     bool printMessages;
     float publish_dt;
+    unsigned int publish_div;
+
+    std::vector<unsigned int> streaming_ids;
+    std::vector<std::string> craft_nose_strings;
 
     ArenaDirection co_north;
     float true_north_deg;
-    ArenaDirection craft_nose;
-    CoordinateSystem co;
+
+    unsigned int nTrackedRB;
+    std::vector<ArenaDirection> craft_nose;
+    std::vector<RigidBody> trackedRBs;
 
     void banner();
     void add_base_po();

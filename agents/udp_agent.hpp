@@ -103,16 +103,16 @@ public:
         this->_socket.open(ip::udp::v4());
     }
 
-    bool publish_data(int idx, pose_t& pose, pose_der_t& pose_der) override
+    bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
         static constexpr size_t Ni = sizeof(this->_ac_id[0]);
         static constexpr size_t Np = sizeof(pose_t);
-        static constexpr size_t Nd = sizeof(pose_der_t);
+        static constexpr size_t Nd = sizeof(twist_t);
 
         uint8_t buf[Ni+Np+Nd];
         memcpy(buf, &(this->_ac_id[idx]), Ni);
         memcpy(buf+Ni, &pose, Np);
-        memcpy(buf+Ni+Np, &pose_der, Nd);
+        memcpy(buf+Ni+Np, &twist, Nd);
 
         boost::system::error_code err;
         auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);

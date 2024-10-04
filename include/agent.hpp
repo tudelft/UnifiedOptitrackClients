@@ -46,8 +46,8 @@ public:
     virtual void parse_extra_po(const boost::program_options::variables_map &vm);
 
     // Publishing functions
-    virtual void print_data(int idx, pose_t& pose, pose_der_t& pose_der);
-    virtual bool publish_data(int idx, pose_t& pose, pose_der_t& pose_der);
+    virtual void print_data(int idx, pose_t& pose, twist_t& twist);
+    virtual bool publish_data(int idx, pose_t& pose, twist_t& twist);
 
     inline void togglePrintMessages() { printMessages ^= true; };
 };

@@ -105,13 +105,13 @@ private:
             if (this->isUnpublishedRB(i)) {
                 unsigned int streaming_id = this->getStreamingId(i);
                 pose_t pose = this->getPoseRB(i);
-                pose_der_t pose_der = this->getPoseDerRB(i);
+                twist_t twist = this->getPoseDerRB(i);
 
                 _logFile << boost::format("%1%,%2%,") % pose.timeUs % streaming_id;
                 _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
                     % pose.x % pose.y % pose.z % pose.qx % pose.qy % pose.qz % pose.qw;
                 _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")
-                    % pose_der.x % pose_der.y % pose_der.z % pose_der.wx % pose_der.wy % pose_der.wz;
+                    % twist.vx % twist.vy % twist.vz % twist.wx % twist.wy % twist.wz;
 
                 _logFile << std::endl;
             }
