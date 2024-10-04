@@ -31,9 +31,9 @@ class Agent
 private:
 protected:
     unsigned int publish_every;
+    float publish_frequency;
     CoordinateSystem csys;
-    ArenaDirection north_dir;
-    float true_north_deg;
+    float true_north_rad;
 public:
     bool printMessages;
 
@@ -41,9 +41,9 @@ public:
     Agent(const Agent &other);
     ~Agent();
 
-    void set_publish_divisor( unsigned int div );
+    void set_publish_speed( unsigned int div, float freq );
     void set_csys( CoordinateSystem csys );
-    void set_north( ArenaDirection dir, float true_north_deg);
+    void set_north( float true_north_rad);
     void new_data_available( std::vector<RigidBody>& RBs );
 
     virtual void banner();

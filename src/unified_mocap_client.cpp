@@ -31,52 +31,6 @@
 
 namespace po = boost::program_options;
 
-// stream operators for enums
-/*
-std::ostream& operator<<(std::ostream& lhs, ErrorCode e) {
-    switch(e) {
-    case ErrorCode_OK: lhs <<               "OK"; break;
-    case ErrorCode_Internal: lhs <<         "Internal"; break;
-    case ErrorCode_External: lhs <<         "External"; break;
-    case ErrorCode_Network: lhs <<          "Network"; break;
-    case ErrorCode_Other: lhs <<            "Other"; break;
-    case ErrorCode_InvalidArgument: lhs <<  "InvalidArgument"; break;
-    case ErrorCode_InvalidOperation: lhs << "InvalidOperation"; break;
-    case ErrorCode_InvalidSize: lhs <<      "InvalidSize"; break;
-    }
-    return lhs;
-} 
-
-std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
-    switch(e) {
-    case UNCHANGED: lhs << "UNCHANGED"; break;
-    case NED: lhs << "NED"; break;
-    case ENU: lhs << "ENU"; break;
-    }
-    return lhs;
-} 
-
-std::ostream& operator<<(std::ostream& lhs, ArenaDirection e) {
-    switch(e) {
-    case RIGHT: lhs << "RIGHT"; break;
-    case FAR_SIDE: lhs << "FAR_SIDE"; break;
-    case LEFT: lhs << "LEFT"; break;
-    case NEAR_SIDE: lhs << "NEAR_SIDE"; break;
-    }
-    return lhs;
-} 
-
-std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
-    switch(e) {
-    case NOTDETECTED: lhs << "NOTDETECTED"; break;
-    case X: lhs << "X"; break;
-    case Y: lhs << "Y"; break;
-    case Z: lhs << "Z"; break;
-    }
-    return lhs;
-}
-*/
-
 UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 {
     (void) other;
@@ -85,7 +39,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 }
 
 UnifiedMocapClient::UnifiedMocapClient(Mocap* mocap, Agent* agent) :
-    printMessages{false}, publish_dt{0.01f}, desc{"Allowed options"}, vm{}, publish_div{0}
+    printMessages{false}, desc{"Allowed options"}, vm{}, publish_div{0}, publish_frequency{0.f}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
     // user-defined interval (on the order of 10ms)?
@@ -97,92 +51,6 @@ UnifiedMocapClient::UnifiedMocapClient(Mocap* mocap, Agent* agent) :
     this->mocap->banner();
     this->agent->banner();
 }
-
-/*
-void UnifiedMocapClient::publish_loop()
-{
-    using namespace std::chrono_literals;
-    bool run = true;
-    auto ts = std::chrono::steady_clock::now();
-    float sleep_time = this->publish_dt;
-
-    while(run)
-    {
-        if (this->testMode)
-        {
-            sFrameOfMocapData fakeData;
-            const auto microsecondsSinceEpoch = std::chrono::time_point_cast<std::chrono::microseconds>(ts).time_since_epoch().count();
-            fakeData.CameraMidExposureTimestamp = microsecondsSinceEpoch;
-            fakeData.nRigidBodies = 1;
-            fakeData.RigidBodies[0].ID = this->getStreamingIds()[0];
-            fakeData.RigidBodies[0].MeanError = 0.001;
-            fakeData.RigidBodies[0].qw = 1.;
-            fakeData.RigidBodies[0].qx = 0.;
-            fakeData.RigidBodies[0].qy = 0.;
-            fakeData.RigidBodies[0].qz = 0.;
-            fakeData.RigidBodies[0].x = 1.;
-            fakeData.RigidBodies[0].y = 2.;
-            fakeData.RigidBodies[0].z = 3.;
-            fakeData.RigidBodies[0].params = 0x01; // valid
-            this->natnet_data_handler(&fakeData);
-        }
-
-        // Transform the pose to the desired coordinate system
-        pose_t newPose = transform_pose(this->co,
-                                this->co_north,
-                                this->true_north_deg,
-                                this->up_axis,
-                                this->long_edge,
-                                this->craft_nose,
-                                newPose);
-
-        this->publish_data();
-        this->setPublishedAllRB();
-
-        if (this->printMessages) {
-		    printf("Incoming Rigid Body Data Frame [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
-		    printf("\t\tx\ty\tz\tqx\tqy\tqz\tqw\n");
-		    printf("Incoming: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
-		    	data->RigidBodies[i].x,
-		    	data->RigidBodies[i].y,
-		    	data->RigidBodies[i].z,
-		    	data->RigidBodies[i].qx,
-		    	data->RigidBodies[i].qy,
-		    	data->RigidBodies[i].qz,
-		    	data->RigidBodies[i].qw);
-		    printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
-		    	newPose.x,
-		    	newPose.y,
-		    	newPose.z,
-		    	newPose.qx,
-		    	newPose.qy,
-		    	newPose.qz,
-		    	newPose.qw);
-            printf("\t\tvx\tvy\tvz\twx\twy\twz\n");
-		    printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n\n",
-                newPoseDer.x,
-                newPoseDer.y,
-                newPoseDer.z,
-                newPoseDer.wx,
-                newPoseDer.wy,
-                newPoseDer.wz);
-        }
-
-        using namespace std::chrono_literals;
-        std::this_thread::sleep_for(sleep_time * 1s);
-
-        // We measure the duration of publish_data and adjust 
-        // the publish_dt based on that in a closed loop fashion
-        // in order to achieve the desired frequency
-        auto ts_new = std::chrono::steady_clock::now();
-        std::chrono::duration<float> duration = ts_new - ts;
-
-        sleep_time += 0.25 * (this->publish_dt - duration.count()); 
-
-        ts = ts_new;
-    }
-}
-*/
 
 void UnifiedMocapClient::keystroke_loop()
 {
@@ -219,20 +87,11 @@ void UnifiedMocapClient::start(int argc, const char *argv[])
         std::raise(SIGINT); 
     }
 
-    //this->print_coordinate_system();
-
-    // initialize filters for derivatives
-    //for (unsigned int i=0; i < MAX_TRACKED_RB; i++) {
-    //    derFilter[i] = PoseDifferentiator();
-    //}
-
     this->agent->pre_start();
-    //this->pubThread = std::thread(&UnifiedMocapClient::publish_loop, this);
     this->keyThread = std::thread(&UnifiedMocapClient::keystroke_loop, this);
     this->agent->post_start();
 
     // some blocking code
-    //this->pubThread.join();
     this->keyThread.join();
 }
 
@@ -241,7 +100,7 @@ void UnifiedMocapClient::add_base_po()
     this->desc.add_options()
         ("help,h", "produce help message")
         ("publish_divisor,d", po::value<unsigned int>(), "Publish every <publish_divisor> sample of the incoming MoCap data")
-        ("publish_frequency,f", po::value<float>(), "Current not implemented. May be alternative to -d.")
+        ("publish_frequency,f", po::value<float>(), "Publish at least at this frequency, if there are new samples.")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [ned, enu]")
         ("coordinate_north,r", po::value<std::string>(), "where north should be relative to the observer. Either non-zero number describing right-hand rotation of north axis from the far side, or one of [right, far_side, left, near_side].")
         ("streaming_ids,s", po::value<std::vector<unsigned int>>()->multitoken(), "streaming ids to track")
@@ -284,9 +143,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
 
     this->agent->set_csys(co);
 
-
-    ArenaDirection north;
-    float true_north_deg = 0.f;
+    float true_north_rad = 0.f;
     if(vm.count("coordinate_north"))
     {
         //if (this->co == CoordinateSystem::UNCHANGED) {
@@ -298,25 +155,24 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
 
         if(co_north.compare("right") == 0)
         {
-            north = ArenaDirection::RIGHT;
+            true_north_rad = -M_PI/2.0f;
         }
         else if(co_north.compare("far_side") == 0)
         {
-            north = ArenaDirection::FAR_SIDE;
+            true_north_rad = 0.f;
         }
         else if (co_north.compare("left") == 0)
         {
-            north = ArenaDirection::LEFT;
+            true_north_rad = +M_PI/2.0f;
         }
         else if (co_north.compare("near_side") == 0)
         {
-            north = ArenaDirection::NEAR_SIDE;
+            true_north_rad = +M_PI;
         }
         else
         {
-            north = ArenaDirection::TRUE_NORTH;
-            true_north_deg = std::atof(co_north.c_str());
-            if (true_north_deg == 0.0) {
+            true_north_rad = M_PI/180.f * std::atof(co_north.c_str());
+            if (true_north_rad == 0.0) {
                 std::cout << "Coordinate system argument " << co_north << " is neither [near_side, far_side, right, left], nor float (for 0.0 use far_side). Exiting" << std::endl;
                 std::raise(SIGINT);
             }
@@ -332,21 +188,24 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
         std::raise(SIGINT);
     }
 
-    this->agent->set_north(north, true_north_deg);
+    this->agent->set_north(true_north_rad);
 
-    if (vm.count("publish_frequency") + vm.count("publish_divisor") != 1) {
-        std::cout << "must pass either --publish_frequency/-f or --publish_divisor/-d" << std::endl;
+    if (vm.count("publish_frequency") + vm.count("publish_divisor") == 0) {
+        std::cout << "must pass at least one of --publish_frequency/-f or --publish_divisor/-d" << std::endl;
         exit(1);
     }
 
     if (vm.count("publish_frequency")) {
-        std::cout << "Not implemented, use --publish_divisor/-d instead. sorry" << std::endl;
-        exit(1);
+        this->publish_frequency = vm["publish_frequency"].as<float>();
+        if (this->publish_frequency <= 0.f) {
+            std::cout << "publish_frequency must be greater than 0" << std::endl;
+            exit(1);
+        }
+        std::cout << "If input data permets, publishing at " 
+                  << this->publish_frequency << " Hz" << std::endl;
+    } 
 
-        this->publish_dt = 1.0 / vm["publish_frequency"].as<float>();
-        std::cout << "Publish frequency was set to " 
-                  << 1.0 / this->publish_dt << " Hz" << std::endl;
-    } else if (vm.count("publish_divisor")) {
+    if (vm.count("publish_divisor")) {
         this->publish_div = vm["publish_divisor"].as<unsigned int>();
         if (this->publish_div == 0) {
             std::cout << "publish_divisor must be greater than 0" << std::endl;
@@ -356,7 +215,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
                   << this->publish_div << " th sample that will be received." << std::endl;
     }
 
-    this->agent->set_publish_divisor(this->publish_div);
+    this->agent->set_publish_speed( this->publish_div, this->publish_frequency );
 
     if(vm.count("streaming_ids"))
     {

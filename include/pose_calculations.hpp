@@ -20,6 +20,9 @@
 #include <csignal>
 #include <cmath>
 
+enum CoordinateSystem { NED, ENU };
+enum ArenaDirection{ RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE, TRUE_NORTH };
+
 typedef struct pose_s {
     uint64_t timeUs;
     float x;
@@ -41,17 +44,13 @@ typedef struct twist_s {
     float wz;
 } twist_t;
 
-enum CoordinateSystem { NED, ENU };
-enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
-enum ArenaDirection{ RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE, TRUE_NORTH };
-
-pose_t transform_pose(const CoordinateSystem co,
-                      const ArenaDirection co_north,
-                      const float true_north_deg,
-                      const UpAxis up_axis,
-                      const ArenaDirection long_edge,
-                      const ArenaDirection craft_nose,
-                      const pose_t newPose);
+//pose_t transform_pose(const CoordinateSystem co,
+//                      const ArenaDirection co_north,
+//                      const float true_north_deg,
+//                      const UpAxis up_axis,
+//                      const ArenaDirection long_edge,
+//                      const ArenaDirection craft_nose,
+//                      const pose_t newPose);
 
 typedef struct quaternions_s {
     float w;
@@ -100,12 +99,6 @@ class FilteredPoseDifferentiator : public PoseDifferentiator
 
     public:
         FilteredPoseDifferentiator(float fBreakVel, float fBreakRate, float fSample);
-
-        FilteredPoseDifferentiator() : FilteredPoseDifferentiator(1., 1., 1.) {
-            // C++11
-            // probably you can instead use a vector instead of a array to store FilteredPoseDifferentiator instances?
-        }
-
         twist_t apply(pose_t newPose);
 };
 
