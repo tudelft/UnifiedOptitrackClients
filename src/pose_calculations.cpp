@@ -15,6 +15,25 @@
 
 #include "pose_calculations.hpp"
 
+std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
+    switch(e) {
+    //case UNCHANGED: lhs << "UNCHANGED"; break;
+    case NED: lhs << "NED"; break;
+    case ENU: lhs << "ENU"; break;
+    }
+    return lhs;
+} 
+
+std::ostream& operator<<(std::ostream& lhs, ArenaDirection e) {
+    switch(e) {
+    case RIGHT: lhs << "RIGHT"; break;
+    case FAR_SIDE: lhs << "FAR_SIDE"; break;
+    case LEFT: lhs << "LEFT"; break;
+    case NEAR_SIDE: lhs << "NEAR_SIDE"; break;
+    }
+    return lhs;
+} 
+
 /*
 pose_t transform_pose(const CoordinateSystem co, 
                       const ArenaDirection co_north,

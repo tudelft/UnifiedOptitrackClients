@@ -35,6 +35,32 @@
 #include <NatNetClient.h>
 #include <NatNetRequests.h>
 
+enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
+
+std::ostream& operator<<(std::ostream& lhs, ErrorCode e) {
+    switch(e) {
+    case ErrorCode_OK: lhs <<               "OK"; break;
+    case ErrorCode_Internal: lhs <<         "Internal"; break;
+    case ErrorCode_External: lhs <<         "External"; break;
+    case ErrorCode_Network: lhs <<          "Network"; break;
+    case ErrorCode_Other: lhs <<            "Other"; break;
+    case ErrorCode_InvalidArgument: lhs <<  "InvalidArgument"; break;
+    case ErrorCode_InvalidOperation: lhs << "InvalidOperation"; break;
+    case ErrorCode_InvalidSize: lhs <<      "InvalidSize"; break;
+    }
+    return lhs;
+} 
+
+std::ostream& operator<<(std::ostream& lhs, UpAxis e) {
+    switch(e) {
+    case NOTDETECTED: lhs << "NOTDETECTED"; break;
+    case X: lhs << "X"; break;
+    case Y: lhs << "Y"; break;
+    case Z: lhs << "Z"; break;
+    }
+    return lhs;
+}
+
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData);
 
 class OptiTrackMocap : public Mocap

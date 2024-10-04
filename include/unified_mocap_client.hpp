@@ -37,7 +37,7 @@ private:
     Mocap* mocap;
     Agent* agent;
     bool printMessages;
-    float publish_dt;
+    float publish_frequency;
     unsigned int publish_div;
 
     std::vector<unsigned int> streaming_ids;
@@ -48,7 +48,6 @@ private:
     void parse_base_po(int argc, char const *argv[]);
     //void print_coordinate_system() const;
 
-    std::thread pubThread;
     std::thread keyThread;
 
     void keystroke_loop();

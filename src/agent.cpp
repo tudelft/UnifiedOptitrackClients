@@ -35,25 +35,29 @@ void Agent::banner()
 {
 }
 
-void Agent::set_publish_divisor( unsigned int div ) {
-    if (div > 0) {
-        this->publish_every = div;
-    }
+void Agent::set_publish_speed( unsigned int div, float freq ) {
+    this->publish_every = div;
+    this->publish_frequency = freq;
 }
+
 void Agent::set_csys( CoordinateSystem csys ) {
     this->csys = csys;
 }
 
-void Agent::set_north( ArenaDirection dir, float true_north_deg) {
-    this->north_dir = dir;
-    this->true_north_deg = true_north_deg;
+void Agent::set_north( float true_north_rad ) {
+    this->true_north_rad = true_north_rad;
 }
 
 void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
     for (size_t i = 0; i < RBs.size(); ++i) {
-        if (((RBs[i].getNumUnpublishedSamples() + 1) % this->publish_every) == 0) {
-            pose_t pose = RBs[i].getPoseIn(this->csys);
-            twist_t twist = RBs[i].getTwistIn(this->csys);
+        bool divisorReady = ( this->publish_every ) && ( ((RBs[i].getNumUnpublishedSamples() + 1) % this->publish_every) == 0 );
+        bool hasUnpublishedSample = ( RBs[i].getNumUnpublishedSamples() > 0 );
+        bool frequencyReady = ( this->publish_frequency > 0.f ) 
+            && ( (RBs[i].getLatestSampleTime() - RBs[i].getLastPublishedSampleTime()) > ((uint64_t) 1e6*(1.01f / this->publish_frequency)) );
+
+        if (divisorReady || (hasUnpublishedSample && frequencyReady)) {
+            pose_t pose = RBs[i].getPoseIn( this->csys, this->true_north_rad );
+            twist_t twist = RBs[i].getTwistIn( this->csys, this->true_north_rad );
             this->publish_data(
                 i,
                 pose,
