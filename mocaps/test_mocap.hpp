@@ -132,7 +132,7 @@ public:
             };
 
             for (auto& rb : this->RBs) {
-                rb.setNewPoseENU(newPose);
+                rb.setNewPoseENU_NorthFarSide(newPose);
                 this->agent->new_data_available( this->RBs );
             }
 

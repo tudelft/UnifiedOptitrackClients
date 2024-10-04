@@ -30,7 +30,7 @@ twist_t RigidBody::getTwistIn(CoordinateSystem co)
     return this->twistENU;
 }
 
-void RigidBody::setNewPoseENU(pose_t& newPose)
+void RigidBody::setNewPoseENU_NorthFarSide(pose_t& newPose)
 {
     this->poseENU = newPose;
     this->twistENU = this->poseDiff.apply(this->poseENU);

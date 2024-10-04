@@ -30,12 +30,13 @@ class Agent
 {
 private:
 protected:
-    bool printMessages;
     unsigned int publish_every;
     CoordinateSystem csys;
     ArenaDirection north_dir;
     float true_north_deg;
 public:
+    bool printMessages;
+
     Agent();
     Agent(const Agent &other);
     ~Agent();

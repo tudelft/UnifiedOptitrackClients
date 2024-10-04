@@ -248,7 +248,7 @@ public:
         uint64_t timeAtExpoUs = data->CameraMidExposureTimestamp / (this->serverConfig.HighResClockFrequency * 1e-6);
 
         // loop over bodies in frame and process the ones we listen to
-        bool printedHeader = false;
+        bool anyTracked = false;
 	    for (int i=0; i < data->nRigidBodies; i++) {
             unsigned int rb_id = data->RigidBodies[i].ID;
 
@@ -267,6 +267,8 @@ public:
             if (!bTrackingValid)
                 continue;
 
+            anyTracked = true;
+
             pose_t newPose {
                 timeAtExpoUs,
                 data->RigidBodies[i].x,
@@ -278,15 +280,97 @@ public:
                 data->RigidBodies[i].qw,
             };
 
-            // TODO: convert!!!
+            pose_t newPoseYUP = newPose;
 
-            theRb->setNewPoseENU( newPose );
+            // TODO: convert!!!
+            switch(this->up_axis)
+            {
+                case UpAxis::X:
+                    // Transform from X-Up to Y-Up
+                    newPoseYUP.x = -newPose.y;
+                    newPoseYUP.y = newPose.x;
+                    newPoseYUP.z = newPose.z;
+
+                    newPoseYUP.qw = newPose.qw;
+                    newPoseYUP.qx = -newPose.qy;
+                    newPoseYUP.qy = newPose.qx;
+                    newPoseYUP.qz = newPose.qz;
+                    break;
+                case UpAxis::Y:
+                    // We do nothing because this is what we want to have
+                    break;
+                case UpAxis::Z:
+                    // Transform from X-Up to Y-Up
+                    newPoseYUP.x = newPose.x;
+                    newPoseYUP.y = newPose.z;
+                    newPoseYUP.z = -newPose.y;
+
+                    newPoseYUP.qw = newPose.qw;
+                    newPoseYUP.qx = newPose.qx;
+                    newPoseYUP.qy = newPose.qz;
+                    newPoseYUP.qz = -newPose.qy;
+                    break;
+                case UpAxis::NOTDETECTED:
+                default:
+                    // The up axis is not known. Abort
+                    std::cerr << "The up-axis is not detected. Aborting." << std::endl;
+                    std::raise(SIGINT);
+                    break;
+            }
+
+            // convert yup to ENU with east being the long edge of the calib triangle
+            pose_t newPoseENU_longEdgeEast = {
+                timeAtExpoUs,
+                newPoseYUP.z, newPoseYUP.x, newPoseYUP.y,
+                newPoseYUP.qw, newPoseYUP.qz, newPoseYUP.qx, newPoseYUP.qy,
+            };
+
+            pose_t newPoseENU_northFarSide = newPoseENU_longEdgeEast;
+
+            switch(long_edge)
+            {
+
+                case ArenaDirection::RIGHT:
+                    // We do nothing because this is what we want to have
+                    break;
+                case ArenaDirection::FAR_SIDE:
+                    // Rotate to align in the yaw plane
+                    newPoseENU_northFarSide.y = newPoseENU_longEdgeEast.x;
+                    newPoseENU_northFarSide.x = -newPoseENU_longEdgeEast.y;
+
+                    newPoseENU_northFarSide.qy = newPoseENU_longEdgeEast.qx;
+                    newPoseENU_northFarSide.qx = -newPoseENU_longEdgeEast.qy;
+                    break;
+                case ArenaDirection::LEFT:
+                    // Rotate to align in the yaw plane
+                    newPoseENU_northFarSide.y = -newPoseENU_longEdgeEast.y;
+                    newPoseENU_northFarSide.x = -newPoseENU_longEdgeEast.x;
+
+                    newPoseENU_northFarSide.qy = -newPoseENU_longEdgeEast.qy;
+                    newPoseENU_northFarSide.qx = -newPoseENU_longEdgeEast.qx;
+                    break;
+                case ArenaDirection::NEAR_SIDE:
+                    // Rotate to align in the yaw plane
+                    newPoseENU_northFarSide.y = -newPoseENU_longEdgeEast.x;
+                    newPoseENU_northFarSide.x = newPoseENU_longEdgeEast.y;
+
+                    newPoseENU_northFarSide.qy = -newPoseENU_longEdgeEast.qx;
+                    newPoseENU_northFarSide.qx = newPoseENU_longEdgeEast.qy;
+                    break;
+            }
+
+            theRb->setNewPoseENU_NorthFarSide( newPoseENU_northFarSide );
+        }
+
+        if ( this->agent->printMessages && !anyTracked ) {
+            std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us";
+            //if (!anyTracked) {
+                std::cout << ", but none are tracked";
+            //}
+            std::cout << std::endl;
         }
 
         this->agent->new_data_available( this->RBs );
-
-        //if ( (this->printMessages) && (!printedHeader) )
-        //    std::cout << "Received NatNet data for " << data->nRigidBodies << " rigid bodies for host time: " << timeAtExpoUs << "us, but none are tracked." << std::endl;
 
         return;
     }
