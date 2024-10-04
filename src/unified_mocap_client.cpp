@@ -85,7 +85,7 @@ UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
 }
 
 UnifiedMocapClient::UnifiedMocapClient(Mocap* mocap, Agent* agent) :
-    printMessages{false}, publish_dt{0.01f}, desc{"Allowed options"}, vm{}
+    printMessages{false}, publish_dt{0.01f}, desc{"Allowed options"}, vm{}, publish_div{0}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
     // user-defined interval (on the order of 10ms)?
@@ -219,7 +219,7 @@ void UnifiedMocapClient::start(int argc, const char *argv[])
 
     // initialize filters for derivatives
     //for (unsigned int i=0; i < MAX_TRACKED_RB; i++) {
-    //    derFilter[i] = PureDifferentiator();
+    //    derFilter[i] = PoseDifferentiator();
     //}
 
     this->agent->pre_start();
@@ -236,10 +236,12 @@ void UnifiedMocapClient::add_base_po()
 {
     this->desc.add_options()
         ("help,h", "produce help message")
-        ("publish_frequency,f", po::value<float>(), "publishing frequency of the MoCap odometry")
-        ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [unchanged, ned, enu]")
+        ("publish_divisor,d", po::value<unsigned int>(), "Publish every <publish_divisor> sample of the incoming MoCap data")
+        ("publish_frequency,f", po::value<float>(), "Current not implemented. May be alternative to -d.")
+        ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [ned, enu]")
         ("coordinate_north,r", po::value<std::string>(), "where north should be relative to the observer. Either non-zero number describing right-hand rotation of north axis from the far side, or one of [right, far_side, left, near_side].")
-        ("craft_nose,n", po::value<std::string>(), "direction of aircraft nose when creating the rigid body in Motive [right, far_side, left, near_side]")
+        ("streaming_ids,s", po::value<std::vector<unsigned int>>()->multitoken(), "streaming ids to track")
+        ("craft_noses,n", po::value<std::vector<std::string>>()->multitoken(), "direction of aircraft noses when creating the rigid body in the mocap software. space-separated list of [right, far_side, left, near_side]")
     ;
 }
 
@@ -253,23 +255,14 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
         exit(0);
     }
 
-    if (vm.count("publish_frequency")) {
-        this->publish_dt = 1.0 / vm["publish_frequency"].as<float>();
-        std::cout << "Publish frequency was set to " 
-                  << 1.0 / this->publish_dt << " Hz" << std::endl;
-    } else {
-        std::cout << "Publish frequency not set, defaulting to " 
-                  << 1.0 / this->publish_dt
-                  << " Hz" << std::endl;   
-    }
-
     if(vm.count("coordinate_system"))
     {
         std::string co_name = vm["coordinate_system"].as<std::string>();
         boost::algorithm::to_lower(co_name);
 
-        if(co_name.compare("unchanged") == 0) { this->co = CoordinateSystem::UNCHANGED; }
-        else if(co_name.compare("ned") == 0) { this->co = CoordinateSystem::NED; }
+        //if(co_name.compare("unchanged") == 0) { this->co = CoordinateSystem::UNCHANGED; }
+        //else
+        if(co_name.compare("ned") == 0) { this->co = CoordinateSystem::NED; }
         else if (co_name.compare("enu") == 0) { this->co = CoordinateSystem::ENU; }
         else {
             std::cout << "Coordinate system " << co_name << " not definied. Exiting" << std::endl;
@@ -285,10 +278,10 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
 
     if(vm.count("coordinate_north"))
     {
-        if (this->co == CoordinateSystem::UNCHANGED) {
-            std::cout << "Can only specify --coordinate_north/-r when coordinate system is not UNCHANGED. Exiting" << std::endl;
-            std::raise(SIGINT);
-        }
+        //if (this->co == CoordinateSystem::UNCHANGED) {
+        //    std::cout << "Can only specify --coordinate_north/-r when coordinate system is not UNCHANGED. Exiting" << std::endl;
+        //    std::raise(SIGINT);
+        //}
         std::string co_north = vm["coordinate_north"].as<std::string>();
         boost::algorithm::to_lower(co_north);
 
@@ -326,44 +319,83 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
                   << this->co_north << std::endl;
     }
 
-    if(vm.count("craft_nose"))
+    if (vm.count("publish_frequency") + vm.count("publish_divisor") != 1) {
+        std::cout << "must pass either --publish_frequency/-f or --publish_divisor/-d" << std::endl;
+        exit(1);
+    }
+
+    if (vm.count("publish_frequency")) {
+        std::cout << "Not implemented, use --publish_divisor/-d instead. sorry" << std::endl;
+        exit(1);
+
+        this->publish_dt = 1.0 / vm["publish_frequency"].as<float>();
+        std::cout << "Publish frequency was set to " 
+                  << 1.0 / this->publish_dt << " Hz" << std::endl;
+    } else if (vm.count("publish_divisor")) {
+        this->publish_div = vm["publish_divisor"].as<unsigned int>();
+        if (this->publish_div == 0) {
+            std::cout << "publish_divisor must be greater than 0" << std::endl;
+            exit(1);
+        }
+        std::cout << "Publishing every "
+                  << this->publish_div << " th sample that will be received." << std::endl;
+    }
+
+    if(vm.count("streaming_ids"))
     {
-        if (this->co == CoordinateSystem::UNCHANGED) {
-            std::cout << "Can only specify --craft_nose/-n when coordinate system is not UNCHANGED. Exiting" << std::endl;
-            std::raise(SIGINT);
-        }
-        std::string le = vm["craft_nose"].as<std::string>();
-        boost::algorithm::to_lower(le);
-
-        if(le.compare("right") == 0)
-        {
-            this->craft_nose = ArenaDirection::RIGHT;
-        }
-        else if(le.compare("far_side") == 0)
-        {
-            this->craft_nose = ArenaDirection::FAR_SIDE;
-        }
-        else if (le.compare("left") == 0)
-        {
-            this->craft_nose = ArenaDirection::LEFT;
-        }
-        else if (le.compare("near_side") == 0)
-        {
-            this->craft_nose = ArenaDirection::NEAR_SIDE;
-        }
-        else
-        {
-            std::cout << "A/C Nose Direction " << le << " not definied. Exiting" << std::endl;
-            std::raise(SIGINT);
-        }
-
-        std::cout << "A/C nose direction set to " << this->craft_nose << std::endl;
-
+        this->streaming_ids = vm["streaming_ids"].as<std::vector<unsigned int>>();
+        //std::cout << "Streaming IDs set to";
+        //for(unsigned int id : this->streaming_ids) std::cout << " " << id << " ";
+        //std::cout << std::endl;
     }
     else
     {
-        std::cout << "A/C nose direction not set, defaulting to "
-                  << this->craft_nose << std::endl;
+        std::cout << "Streaming IDs not set" <<std::endl;
+        exit(1);
+    }
+
+    if(vm.count("craft_noses"))
+    {
+        this->craft_nose_strings = vm["craft_noses"].as<std::vector<std::string>();
+        if (this->craft_nose_strings.size() != this->streaming_ids.size()) {
+            std::cout << "Streaming IDs input must be the same length as craft_noses!" << std::endl;
+        }
+
+        for (size_t i = 0; i < this->craft_nose_strings.size(); ++i) {
+            std::string str = this->craft_nose_strings[i];
+            boost::algorithm::to_lower(str);
+
+            ArenaDirection dir;
+            if(str.compare("right") == 0)
+            {
+                dir = ArenaDirection::RIGHT;
+            }
+            else if(str.compare("far_side") == 0)
+            {
+                dir = ArenaDirection::FAR_SIDE;
+            }
+            else if (str.compare("left") == 0)
+            {
+                dir = ArenaDirection::LEFT;
+            }
+            else if (str.compare("near_side") == 0)
+            {
+                dir = ArenaDirection::NEAR_SIDE;
+            }
+            else
+            {
+                std::cout << "A/C Nose Direction " << str << " not definied. Exiting" << std::endl;
+                std::raise(SIGINT);
+            }
+
+            std::cout << "Creating rigid body with streaming id " << this->streaming_ids[i] << " and nose direction " << dir << std::endl;
+            this->trackedRBs.push_back(new RigidBody( dir ));
+        }
+    }
+    else
+    {
+        std::cout << "A/C nose direction not set, exiting" << std::endl;
+        std::raise(SIGINT);
     }
 }
 

@@ -234,7 +234,7 @@ void quaternion_of_rotationMatrix(quaternion_t *q, const rotationMatrix_t *r) {
     }
 }
 
-void PureDifferentiator::newSample(pose_t newPose)
+void PoseDifferentiator::newSample(pose_t newPose)
 {
     int64_t delta = newPose.timeUs - _pose.timeUs; // does this deal with overflows?
 
@@ -246,15 +246,15 @@ void PureDifferentiator::newSample(pose_t newPose)
     }
     _valid = true;
 
-    double iDelta = 1.0 / (static_cast<double>(delta) * 1e-6f);
+    float iDelta = 1.0 / (static_cast<float>(delta) * 1e-6f);
     _unfiltered.timeUs = newPose.timeUs;
     _unfiltered.x = iDelta * (newPose.x - _pose.x);
     _unfiltered.y = iDelta * (newPose.y - _pose.y);
     _unfiltered.z = iDelta * (newPose.z - _pose.z);
 
     // https://mariogc.com/post/angular-velocity-quaternions/
-    double q1[4] = {_pose.qw, _pose.qx, _pose.qy, _pose.qz};
-    double q2[4] = {newPose.qw, newPose.qx, newPose.qy, newPose.qz};
+    float q1[4] = {_pose.qw, _pose.qx, _pose.qy, _pose.qz};
+    float q2[4] = {newPose.qw, newPose.qx, newPose.qy, newPose.qz};
     _unfiltered.wx = 2.*iDelta * (q1[0]*q2[1] - q1[1]*q2[0] - q1[2]*q2[3] + q1[3]*q2[2]);
     _unfiltered.wy = 2.*iDelta * (q1[0]*q2[2] + q1[1]*q2[3] - q1[2]*q2[0] - q1[3]*q2[1]);
     _unfiltered.wz = 2.*iDelta * (q1[0]*q2[3] - q1[1]*q2[2] + q1[2]*q2[1] - q1[3]*q2[0]);
@@ -262,10 +262,10 @@ void PureDifferentiator::newSample(pose_t newPose)
     _pose = newPose;
 }
 
-FilteredDifferentiator::FilteredDifferentiator(double fBreakVel,
-                                               double fBreakRate,
-                                               double fSample)
-    : PureDifferentiator(), _initialized{false}, _filtered{0,
+FilteredPoseDifferentiator::FilteredPoseDifferentiator(float fBreakVel,
+                                                       float fBreakRate,
+                                                       float fSample)
+    : PoseDifferentiator(), _initialized{false}, _filtered{0,
                                                            0, 0, 0,
                                                            0, 0, 0}
 {
@@ -288,7 +288,7 @@ FilteredDifferentiator::FilteredDifferentiator(double fBreakVel,
     _kRate = 1. / (1. + _fSample / (2. * M_PI * _fBreakRate) );
 }
 
-pose_der_t FilteredDifferentiator::apply(pose_t newPose)
+twist_t FilteredPoseDifferentiator::apply(pose_t newPose)
 {
     newSample(newPose);
     if (!_valid)

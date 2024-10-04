@@ -19,7 +19,7 @@
 Mocap::Mocap()
 {
     for (int i = 0; i < MAX_TRACKED_RB; i++) {
-        derFilter[i] = FilteredDifferentiator(10.f, 5.f, 100); // FIXMEEEE
+        derFilter[i] = FilteredPoseDifferentiator(10.f, 5.f, 100); // FIXMEEEE
     }
 }
 

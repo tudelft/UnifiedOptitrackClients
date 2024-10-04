@@ -34,7 +34,7 @@ void Agent::banner()
 {
 }
 
-void Agent::print_data(int idx, pose_t& pose, pose_der_t& pose_der)
+void Agent::print_data(int idx, pose_t& pose, twist_t& twist)
 {
     if ( this->printMessages ) {
         //printf("Incoming Rigid Body Data Frame [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
@@ -57,17 +57,17 @@ void Agent::print_data(int idx, pose_t& pose, pose_der_t& pose_der)
             pose.qw);
         printf("\t\tvx\tvy\tvz\twx\twy\twz\n");
         printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n\n",
-            pose_der.x,
-            pose_der.y,
-            pose_der.z,
-            pose_der.wx,
-            pose_der.wy,
-            pose_der.wz);
+            twist.vx,
+            twist.vy,
+            twist.vz,
+            twist.wx,
+            twist.wy,
+            twist.wz);
     }
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
-bool Agent::publish_data(int idx, pose_t& pose, pose_der_t& pose_der)
+bool Agent::publish_data(int idx, pose_t& pose, twist_t& twist)
 {
     return false;
 }

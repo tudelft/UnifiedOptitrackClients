@@ -25,6 +25,7 @@
 #include <thread>
 
 #include "pose_calculations.hpp"
+#include "rigid_body.hpp"
 #include "agent.hpp"
 
 constexpr unsigned int MAX_TRACKED_RB = 10;
@@ -33,15 +34,15 @@ class Mocap
 {
 private:
     // container for tracking the rigid bodies
-    uint8_t nTrackedRB;
-    int trackedRB[MAX_TRACKED_RB];
-    bool unpublishedDataRB[MAX_TRACKED_RB];
-    pose_t poseRB[MAX_TRACKED_RB];
-    std::mutex poseMutexes[MAX_TRACKED_RB];
-    pose_der_t poseDerRB[MAX_TRACKED_RB];
-    std::mutex poseDerMutexes[MAX_TRACKED_RB];
 
-    FilteredDifferentiator derFilter[MAX_TRACKED_RB];
+    //int trackedRB[MAX_TRACKED_RB];
+    //bool unpublishedDataRB[MAX_TRACKED_RB];
+    //pose_t poseRB[MAX_TRACKED_RB];
+    //std::mutex poseMutexes[MAX_TRACKED_RB];
+    //twist_t poseDerRB[MAX_TRACKED_RB];
+    //std::mutex poseDerMutexes[MAX_TRACKED_RB];
+
+    //FilteredPoseDifferentiator derFilter[MAX_TRACKED_RB];
 
     Agent* agent;
 
@@ -58,7 +59,7 @@ protected:
 
     void processNewPose(int idx, pose_t& newPose) {
         // calculate derivative
-        pose_der_t newPoseDer = derFilter[idx].apply(newPose);
+        twist_t newPoseDer = derFilter[idx].apply(newPose);
 
         /* Thread safely setting the new values */
         // Lock respective mutex
@@ -67,7 +68,7 @@ protected:
         this->poseMutexes[idx].unlock();
 
         this->poseDerMutexes[idx].lock();
-            memcpy(&(this->poseDerRB[idx]), &newPoseDer, sizeof(pose_der_t));
+            memcpy(&(this->poseDerRB[idx]), &newPoseDer, sizeof(twist_t));
         this->poseDerMutexes[idx].unlock();
 
         // set unpublished
@@ -126,12 +127,12 @@ public:
         this->poseMutexes[idx].unlock();
         return pose;
     };
-    pose_der_t getPoseDerRB(unsigned int idx){
+    twist_t getPoseDerRB(unsigned int idx){
         // Lock respective mutex
         this->poseDerMutexes[idx].lock();
-            pose_der_t pose_der(this->poseDerRB[idx]);
+            twist_t twist(this->poseDerRB[idx]);
         this->poseDerMutexes[idx].unlock();
-        return pose_der;
+        return twist;
     };
     void setPublishedRB(unsigned int idx)
     {

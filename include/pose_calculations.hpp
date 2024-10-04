@@ -31,19 +31,19 @@ typedef struct pose_s {
     float qw;
 } pose_t;
 
-typedef struct pose_der_s {
+typedef struct twist_s {
     uint64_t timeUs;
-    float x;
-    float y;
-    float z;
+    float vx;
+    float vy;
+    float vz;
     float wx;
     float wy;
     float wz;
-} pose_der_t;
+} twist_t;
 
-enum CoordinateSystem { UNCHANGED=0, NED, ENU};
+enum CoordinateSystem { NED, ENU };
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
-enum ArenaDirection{RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE, TRUE_NORTH};
+enum ArenaDirection{ RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE, TRUE_NORTH };
 
 pose_t transform_pose(const CoordinateSystem co,
                       const ArenaDirection co_north,
@@ -66,18 +66,18 @@ typedef struct rotationMatrix_s {
 
 void quaternion_of_rotationMatrix(quaternion_t *q, const rotationMatrix_t *r);
 
-class PureDifferentiator
+class PoseDifferentiator
 {
     protected:
         pose_t _pose;
-        pose_der_t _unfiltered;
+        twist_t _unfiltered;
         bool _valid;
     public:
-        PureDifferentiator() : _valid{false} { _pose.qw = 1.; };
-        //~PureDifferentiator();
-        pose_der_t getUnfiltered() { return _unfiltered; };
-        virtual pose_der_t getFiltered() { return _unfiltered; };
-        virtual pose_der_t apply(pose_t newPose) {
+        PoseDifferentiator() : _valid{false} { _pose.qw = 1.; };
+        //~PoseDifferentiator();
+        twist_t getUnfiltered() { return _unfiltered; };
+        virtual twist_t getFiltered() { return _unfiltered; };
+        virtual twist_t apply(pose_t newPose) {
             // default: no filtering at all
             newSample(newPose);
             return _unfiltered;
@@ -87,7 +87,7 @@ class PureDifferentiator
         void newSample(pose_t newPose);
 };
 
-class FilteredDifferentiator : public PureDifferentiator
+class FilteredPoseDifferentiator : public PoseDifferentiator
 {
     private:
         double _fBreakVel;
@@ -95,18 +95,18 @@ class FilteredDifferentiator : public PureDifferentiator
         double _fSample;
         double _kVel;
         double _kRate;
-        pose_der_t _filtered;
+        twist_t _filtered;
         bool _initialized;
 
     public:
-        FilteredDifferentiator(double fBreakVel, double fBreakRate, double fSample);
+        FilteredPoseDifferentiator(double fBreakVel, double fBreakRate, double fSample);
 
-        FilteredDifferentiator() : FilteredDifferentiator(1., 1., 1.) {
+        FilteredPoseDifferentiator() : FilteredPoseDifferentiator(1., 1., 1.) {
             // C++11
-            // probably you can instead use a vector instead of a array to store FilteredDifferentiator instances?
+            // probably you can instead use a vector instead of a array to store FilteredPoseDifferentiator instances?
         }
 
-        pose_der_t apply(pose_t newPose);
+        twist_t apply(pose_t newPose);
 };
 
 #endif // H_POSE_CALCULATINOS
