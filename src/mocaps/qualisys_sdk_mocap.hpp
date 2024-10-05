@@ -119,6 +119,8 @@ public:
         // cleanup if necessary
         this->shouldStop = true;
         this->receiverThread.join();
+        this->rtProtocol.StopCapture();
+        this->rtProtocol.Disconnect();
     }
 
     void banner() override
@@ -186,7 +188,7 @@ public:
         // also see the optitrack client, which does it with callback
 
         const int majorVersion = 1;
-        const int minorVersion = 25; // todo: double check this
+        const int minorVersion = 19; // todo: double check this
         if (!this->rtProtocol.Connect(this->server_addr.c_str(), this->base_port, &this->stream_port, majorVersion, minorVersion, this->bigEndian))
         {
             std::cout << "rtProtocol.Connect: " << this->rtProtocol.GetErrorString() << std::endl;
@@ -195,7 +197,7 @@ public:
 
         // NULL: just send back to the host that sends the request
         // cComponent6D: position and rotation matrix
-        if (!this->rtProtocol.StreamFrames(CRTProtocol::RateFrequencyDivisor, 2, this->stream_port, NULL, CRTProtocol::cComponent6d))
+        if (!this->rtProtocol.StreamFrames(CRTProtocol::RateFrequencyDivisor, 1, this->stream_port, NULL, CRTProtocol::cComponent6d))
         {
             std::cout << "rtProtocol.StreamFrames: " << rtProtocol.GetErrorString() << std::endl;
             std::raise(SIGINT);
