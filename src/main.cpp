@@ -36,6 +36,11 @@
     #include "qualisys_mocap.hpp"
 #endif
 
+#ifdef USE_MOCAP_QUALISYS_SDK
+    #include "qualisys_sdk_mocap.hpp"
+#endif
+
+
 
 
 #ifdef USE_AGENT_CONSOLE
@@ -90,6 +95,11 @@ int main(int argc, char const *argv[])
 #ifdef USE_MOCAP_QUALISYS
     if (strcasecmp(argv[1], "qualisys") == 0) {
         mocap = new QualisysMocap();
+    } else
+#endif
+#ifdef USE_MOCAP_QUALISYS_SDK
+    if (strcasecmp(argv[1], "qualisys_sdk") == 0) {
+        mocap = new QualisysSdkMocap();
     } else
 #endif
     {

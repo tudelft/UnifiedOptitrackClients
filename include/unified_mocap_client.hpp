@@ -41,6 +41,7 @@ private:
     unsigned int publish_div;
 
     std::vector<unsigned int> streaming_ids;
+    std::vector<std::string> streaming_names;
     std::vector<std::string> craft_nose_strings;
 
     void banner();

@@ -104,6 +104,7 @@ void UnifiedMocapClient::add_base_po()
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [ned, enu]")
         ("coordinate_north,r", po::value<std::string>(), "where north should be relative to the observer. Either non-zero number describing right-hand rotation of north axis from the far side, or one of [right, far_side, left, near_side].")
         ("streaming_ids,s", po::value<std::vector<unsigned int>>()->multitoken(), "streaming ids to track")
+        ("streaming_names", po::value<std::vector<std::string>>()->multitoken(), "streaming names to track. Alternative to -s")
         ("craft_noses,n", po::value<std::vector<std::string>>()->multitoken(), "direction of aircraft noses when creating the rigid body in the mocap software. space-separated list of [right, far_side, left, near_side]")
     ;
 }
@@ -217,24 +218,27 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
 
     this->agent->set_publish_speed( this->publish_div, this->publish_frequency );
 
+    if ((vm.count("streaming_ids") > 0) + (vm.count("streaming_names") > 0) != 1) {
+        std::cout << "Must supply either --streaming_ids/-s or --streaming_names. Exciting" << std::endl;
+        std::raise(SIGINT);
+    }
+
     if(vm.count("streaming_ids"))
     {
         this->streaming_ids = vm["streaming_ids"].as<std::vector<unsigned int>>();
-        //std::cout << "Streaming IDs set to";
-        //for(unsigned int id : this->streaming_ids) std::cout << " " << id << " ";
-        //std::cout << std::endl;
     }
-    else
+
+    if(vm.count("streaming_names"))
     {
-        std::cout << "Streaming IDs not set" <<std::endl;
-        exit(1);
+        this->streaming_names = vm["streaming_names"].as<std::vector<std::string>>();
     }
 
     if(vm.count("craft_noses"))
     {
         this->craft_nose_strings = vm["craft_noses"].as<std::vector<std::string>>();
-        if (this->craft_nose_strings.size() != this->streaming_ids.size()) {
-            std::cout << "Streaming IDs input must be the same length as craft_noses!" << std::endl;
+        if ( (this->craft_nose_strings.size() != this->streaming_ids.size()) &&
+            (this->craft_nose_strings.size() != this->streaming_names.size()) ) {
+            std::cout << "Streaming IDs or streaming names input must be the same length as craft_noses!" << std::endl;
         }
 
         for (size_t i = 0; i < this->craft_nose_strings.size(); ++i) {
@@ -264,8 +268,15 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
                 std::raise(SIGINT);
             }
 
-            std::cout << "Creating rigid body with streaming id " << this->streaming_ids[i] << " and nose direction " << dir << std::endl;
-            RigidBody* rb = new RigidBody( this->streaming_ids[i], dir );
+            RigidBody *rb;
+            if (vm.count("streaming_ids") > 0) {
+                std::cout << "Creating rigid body with streaming id " << this->streaming_ids[i] << " and nose direction " << dir << std::endl;
+                rb = new RigidBody( this->streaming_ids[i], dir );
+            } else { // if(vm.count("streaming_names")) { // redundant
+                std::cout << "Creating rigid body with streaming name " << this->streaming_names[i] << " and nose direction " << dir << std::endl;
+                rb = new RigidBody( i, this->streaming_names[i], dir );
+            }
+
             this->mocap->track_rigid_body(*rb);
         }
     }

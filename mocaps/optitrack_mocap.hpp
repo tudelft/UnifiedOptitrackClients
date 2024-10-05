@@ -282,6 +282,7 @@ public:
             for (auto& rb : this->RBs) {
                 if (rb.id == rb_id) {
                     theRb = &rb;
+                    break;
                 }
             }
 
@@ -396,7 +397,11 @@ public:
             std::cout << std::endl;
         }
 
-        this->agent->new_data_available( this->RBs );
+        if (anyTracked) {
+            // internally, we still check if there _actually_ is a new sample
+            // for each rigid body
+            this->agent->new_data_available( this->RBs );
+        }
 
         return;
     }

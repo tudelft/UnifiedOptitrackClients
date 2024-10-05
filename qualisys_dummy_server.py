@@ -54,7 +54,7 @@ def stream_data_udp(ip, port, freq):
         QTM_RT_6DOF_BODY_fmt = "<fff fff fff fff" # xyz, then rotMat
 
         # 6DOF component data. No Euler, No residual
-        n_body = 3
+        n_body = 1
         _6d_data = b''
         for i in range(n_body):
             x, y, z    = 0., 1., 2. + i
@@ -78,6 +78,7 @@ def stream_data_udp(ip, port, freq):
         tick += 1
 
         sock.sendto(packet, endpoint)
+        print("sent")
         time.sleep(1. / freq)
 
 
@@ -86,10 +87,13 @@ def handle_command(conn, data, length):
 
     if data.startswith("Version"):
         spl = data.split(" ")
+        print(spl)
         if len(spl) == 1:
             send_response(conn, Type.Command, "Version set to 1.25")
-        elif spl[1] == "1.1":
+        elif spl[1].startswith("1.1"):
             send_response(conn, Type.Command, "Version set to 1.1")
+        elif spl[1].startswith("1.25"):
+            send_response(conn, Type.Command, "Version set to 1.25")
         else:
             send_response(conn, Type.Error, "Version NOT supported")
 

@@ -43,7 +43,7 @@ public:
 
     void set_publish_speed( unsigned int div, float freq );
     void set_csys( CoordinateSystem csys );
-    void set_north( float true_north_rad);
+    void set_north( float true_north_rad );
     void new_data_available( std::vector<RigidBody>& RBs );
 
     virtual void banner();

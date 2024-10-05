@@ -22,8 +22,10 @@ class RigidBody
 
     public:
         unsigned int id;
+        std::string name;
 
         RigidBody(unsigned int id, ArenaDirection nose_direction);
+        RigidBody(unsigned int id, std::string, ArenaDirection nose_direction);
 
         pose_t getPoseIn( CoordinateSystem co, float north_angle );
         twist_t getTwistIn( CoordinateSystem co, float north_angle );

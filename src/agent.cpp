@@ -53,7 +53,7 @@ void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
         bool divisorReady = ( this->publish_every ) && ( ((RBs[i].getNumUnpublishedSamples() + 1) % this->publish_every) == 0 );
         bool hasUnpublishedSample = ( RBs[i].getNumUnpublishedSamples() > 0 );
         bool frequencyReady = ( this->publish_frequency > 0.f ) 
-            && ( (RBs[i].getLatestSampleTime() - RBs[i].getLastPublishedSampleTime()) > ((uint64_t) 1e6*(1.01f / this->publish_frequency)) );
+            && ( (RBs[i].getLatestSampleTime() - RBs[i].getLastPublishedSampleTime()) >= ((uint64_t) 1e6*(1.f / this->publish_frequency)) );
 
         if (divisorReady || (hasUnpublishedSample && frequencyReady)) {
             pose_t pose = RBs[i].getPoseIn( this->csys, this->true_north_rad );
