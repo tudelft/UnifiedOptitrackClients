@@ -348,8 +348,8 @@ public:
             // convert yup to ENU with east being the long edge of the calib triangle
             pose_t newPoseENU_longEdgeEast = {
                 timeAtExpoUs,
-                newPoseYUP.z, newPoseYUP.x, newPoseYUP.y,
-                newPoseYUP.qw, newPoseYUP.qz, newPoseYUP.qx, newPoseYUP.qy,
+                .x = newPoseYUP.z, newPoseYUP.x, newPoseYUP.y,
+                .qx = newPoseYUP.qz, .qy = newPoseYUP.qx, .qz = newPoseYUP.qy, .qw = newPoseYUP.qw,
             };
 
             pose_t newPoseENU_northFarSide = newPoseENU_longEdgeEast;

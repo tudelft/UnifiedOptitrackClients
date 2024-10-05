@@ -259,8 +259,8 @@ public:
 
                             pose_t newPose {
                                 markerTimeUs,
-                                fX, fY, fZ,
-                                quat.x, quat.y, quat.z, quat.w
+                                .x = fX, .y = fY, .z = fZ,
+                                .qx = quat.x, .qy = quat.y, .qz = quat.z, .qw = quat.w
                             };
 
                             // TODO; convert transform
