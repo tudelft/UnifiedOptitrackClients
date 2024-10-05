@@ -235,8 +235,8 @@ public:
                 quaternion_of_rotationMatrix(&quat, &rotM);
 
                 pose_t newPose = { header.MarkerTimestamp,
-                    body.x, body.y, body.z,
-                    quat.x, quat.y, quat.z, quat.w
+                    .x = body.x, .y = body.y, .z = body.z,
+                    .qx = quat.x, .qy = quat.y, .qz = quat.z, .qw = quat.w
                     };
 
                 if (this->RBs.size() > 0) {
