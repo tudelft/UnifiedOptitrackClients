@@ -4,11 +4,17 @@
 #include "pose_calculations.hpp"
 
 #include <cmath>
+#include <string>
 
-RigidBody::RigidBody( unsigned int id, ArenaDirection nose_direction ) : 
+RigidBody::RigidBody( unsigned int id, ArenaDirection nose_direction ) : RigidBody(id, std::to_string(id), nose_direction)
+{
+}
+
+RigidBody::RigidBody( unsigned int id, std::string name, ArenaDirection nose_direction ) : 
     //velocity_filter_hz{20.f},
     //rates_filter_hz{10.f},
     id{id},
+    name{name},
     unpublished_samples{0}
 {
     switch(nose_direction)

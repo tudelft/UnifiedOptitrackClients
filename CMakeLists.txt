@@ -95,6 +95,28 @@ if ("qualisys" IN_LIST MOCAPS)
     find_package(Boost REQUIRED COMPONENTS system)
 endif()
 
+if ("qualisys_sdk" IN_LIST MOCAPS)
+    # Include ExternalProject module
+    include(ExternalProject)
+
+    # Add an external project
+    ExternalProject_Add(qualisys_cpp_sdk
+        GIT_REPOSITORY https://github.com/qualisys/qualisys_cpp_sdk/
+        GIT_TAG rt_protocol_1.25
+        GIT_SUBMODULES_RECURSE TRUE
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=install
+        INSTALL_COMMAND cmake --build . --target install
+    )
+
+    add_dependencies(client qualisys_cpp_sdk)
+
+    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/qualisys_cpp_sdk-prefix/src/qualisys_cpp_sdk-build/install/include/qualisys_cpp_sdk)
+
+    #find_package(qualisys_cpp_sdk REQUIRED)
+    target_link_libraries(client ${CMAKE_BINARY_DIR}/qualisys_cpp_sdk-prefix/src/qualisys_cpp_sdk-build/install/lib/libqualisys_cpp_sdk.a)
+
+endif()
+
 # Client-specific stuff
 if ("ivy" IN_LIST AGENTS)
     find_library(IVY_LIB NAMES ivy)
