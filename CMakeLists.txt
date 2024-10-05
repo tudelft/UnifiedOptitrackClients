@@ -18,7 +18,7 @@ cmake_minimum_required(VERSION 3.14)
 # project and executables
 project(optitrack_clients LANGUAGES CXX)
 
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES "src/*.cpp" "src/agents/*.cpp" "src/common/*.cpp" "src/mocaps/*.cpp")
 add_executable(client ${SOURCES})
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
@@ -48,8 +48,8 @@ foreach(x ${MOCAPS})
 endforeach()
 
 include_directories(include)
-include_directories(agents)
-include_directories(mocaps)
+include_directories(src/agents)
+include_directories(src/mocaps)
 include_directories(scripts)
 
 # compiler
