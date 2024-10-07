@@ -256,6 +256,10 @@ public:
                                 continue; // untracked
                             }
 
+                            if ( isnan(fX) || isnan(fY) || isnan(fZ) ) {
+                                continue;
+                            }
+
                             anyTracked = true;
 
                             // TODO: check rotation matrix transpose
