@@ -188,10 +188,19 @@ public:
         // also see the optitrack client, which does it with callback
 
         const int majorVersion = 1;
-        const int minorVersion = 19; // todo: double check this
+        const int minorVersion = 24; // todo: double check this
         if (!this->rtProtocol.Connect(this->server_addr.c_str(), this->base_port, &this->stream_port, majorVersion, minorVersion, this->bigEndian))
         {
             std::cout << "rtProtocol.Connect: " << this->rtProtocol.GetErrorString() << std::endl;
+            std::raise(SIGINT);
+        }
+
+        bool data_available = false;
+        if (!this->rtProtocol.Read6DOFSettings(data_available))
+        {
+            //RCLCPP_ERROR(this->get_logger(), "rtProtocol.Read6DOFSettings: %s", rtProtocol.GetErrorString());
+            std::cout << "error in read 6dof settings" << std::endl;
+            sleep(1);
             std::raise(SIGINT);
         }
 
@@ -261,7 +270,7 @@ public:
 
                             pose_t newPose {
                                 markerTimeUs,
-                                .x = fX, .y = fY, .z = fZ,
+                                .x = 1e-3f * fX, .y = 1e-3f * fY, .z = 1e-3f * fZ,
                                 .qx = quat.x, .qy = quat.y, .qz = quat.z, .qw = quat.w
                             };
 
