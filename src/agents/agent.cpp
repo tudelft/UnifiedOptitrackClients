@@ -50,9 +50,10 @@ void Agent::set_north( float true_north_rad ) {
 
 void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
     for (size_t i = 0; i < RBs.size(); ++i) {
-        bool divisorReady = ( this->publish_every ) && ( ((RBs[i].getNumUnpublishedSamples() + 1) % this->publish_every) == 0 );
+        bool divisorReady = ( this->publish_every > 0 )  // true if divisor cli argument was passed
+            && (RBs[i].getNumUnpublishedSamples() >= this->publish_every);
         bool hasUnpublishedSample = ( RBs[i].getNumUnpublishedSamples() > 0 );
-        bool frequencyReady = ( this->publish_frequency > 0.f ) 
+        bool frequencyReady = ( this->publish_frequency > 0.f )  // true if frequency cli argument was passed
             && ( (RBs[i].getLatestSampleTime() - RBs[i].getLastPublishedSampleTime()) >= ((uint64_t) 1e6*(1.f / this->publish_frequency)) );
 
         if (divisorReady || (hasUnpublishedSample && frequencyReady)) {
@@ -63,11 +64,13 @@ void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
                 pose,
                 twist
             );
-            this->print_data(
-                i,
-                pose,
-                twist
-            );
+            if ( this->printMessages ) {
+                this->print_data(
+                    i,
+                    pose,
+                    twist
+                );
+            }
             RBs[i].setPublished();
         }
     }
@@ -75,34 +78,32 @@ void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
 
 void Agent::print_data(int idx, pose_t& pose, twist_t& twist)
 {
-    if ( this->printMessages ) {
-        //printf("Incoming Rigid Body Data Frame [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
-        printf("\t\tx\ty\tz\tqx\tqy\tqz\tqw\n");
-        //printf("Incoming: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
-        //    data->RigidBodies[i].x,
-        //    data->RigidBodies[i].y,
-        //    data->RigidBodies[i].z,
-        //    data->RigidBodies[i].qx,
-        //    data->RigidBodies[i].qy,
-        //    data->RigidBodies[i].qz,
-        //    data->RigidBodies[i].qw);
-        printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
-            pose.x,
-            pose.y,
-            pose.z,
-            pose.qx,
-            pose.qy,
-            pose.qz,
-            pose.qw);
-        printf("\t\tvx\tvy\tvz\twx\twy\twz\n");
-        printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n\n",
-            twist.vx,
-            twist.vy,
-            twist.vz,
-            twist.wx,
-            twist.wy,
-            twist.wz);
-    }
+    //printf("Incoming Rigid Body Data Frame [ID=%d Error=%3.4f  Valid=%d]\n", data->RigidBodies[i].ID, data->RigidBodies[i].MeanError, bTrackingValid);
+    printf("\t\tx\ty\tz\tqx\tqy\tqz\tqw\n");
+    //printf("Incoming: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
+    //    data->RigidBodies[i].x,
+    //    data->RigidBodies[i].y,
+    //    data->RigidBodies[i].z,
+    //    data->RigidBodies[i].qx,
+    //    data->RigidBodies[i].qy,
+    //    data->RigidBodies[i].qz,
+    //    data->RigidBodies[i].qw);
+    printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n",
+        pose.x,
+        pose.y,
+        pose.z,
+        pose.qx,
+        pose.qy,
+        pose.qz,
+        pose.qw);
+    printf("\t\tvx\tvy\tvz\twx\twy\twz\n");
+    printf("Published: \t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\t%+3.3f\n\n",
+        twist.vx,
+        twist.vy,
+        twist.vz,
+        twist.wx,
+        twist.wy,
+        twist.wz);
 }
 
 // Non-action implementation of the virtual function to make the implementation optional
