@@ -17,19 +17,18 @@
 #define H_QUALISYS_MOCAP
 
 #include <vector>
-#include <mutex>
 #include <boost/program_options.hpp>
-#include <boost/asio.hpp>
-#include <boost/bind/bind.hpp>
 
 #include <iostream>
 #include <csignal>
-#include <thread>
 
 #include <unistd.h>
-#include <termios.h>
+
+#include "RTPacket.h"
+#include "RTProtocol.h"
 
 #include "pose_calculations.hpp"
+
 
 namespace po = boost::program_options;
 
@@ -99,8 +98,18 @@ typedef struct qualisys_6dof_body_s {
 
 class QualisysMocap : public Mocap
 {
+private:
+    std::string server_addr;
+    unsigned short int base_port;
+    unsigned short int stream_port;
+    bool bigEndian;
+    CRTProtocol rtProtocol;
+    
+    std::thread receiverThread;
+    bool shouldStop;
+
 public:
-    QualisysMocap() : Mocap{}, socket_udp{io_context_udp}
+    QualisysMocap() : Mocap{}, base_port{22222}, stream_port{12345}, bigEndian{false}, shouldStop{false}
     {
         // setup work, but do as little as possible
     }
@@ -108,8 +117,10 @@ public:
     ~QualisysMocap()
     {
         // cleanup if necessary
-        this->io_context_udp.stop();
-        this->asyncReceiver.join();
+        this->shouldStop = true;
+        this->receiverThread.join();
+        this->rtProtocol.StopCapture();
+        this->rtProtocol.Disconnect();
     }
 
     void banner() override
@@ -128,8 +139,8 @@ public:
     {
         desc.add_options()
             ("mocap_ip", boost::program_options::value<std::string>(), "QTM IP.")
-            ("mocap_tcp_port", boost::program_options::value<unsigned short int>(), "QTM TCP port.")
-            ("mocap_udp_port", boost::program_options::value<unsigned short int>(), "Arbitrary UDP port 1024-65535 for streaming.")
+            ("mocap_base_port", boost::program_options::value<unsigned short int>(), "QTM TCP base port.")
+            ("mocap_stream_port", boost::program_options::value<unsigned short int>(), "Arbitrary UDP port 1024-65535 for streaming.")
             ;
     }
 
@@ -138,28 +149,28 @@ public:
         if (vm.count("mocap_ip")) {
             std::string val = vm["mocap_ip"].as<std::string>();
             std::cout << "QTM server ip " << val << std::endl;
-            this->mocap_ip = val;
+            this->server_addr = val;
         } else {
             std::cout << "No QTM server ip passed" << std::endl;
             std::raise(SIGINT);
         }
 
         if (vm.count("mocap_tcp_port")) {
-            std::string val = vm["mocap_tcp_port"].as<std::string>();
-            std::cout << "Connecting to QTM on TCP port " << val << std::endl;
-            this->mocap_tcp_port = val;
+            unsigned short int val = vm["mocap_base_port"].as<unsigned short int>();
+            std::cout << "Connecting to QTM using TCP base port " << val << std::endl;
+            this->base_port = val;
         } else {
-            std::cout << "No QTM TCP port given. Assume 22223 (little-endian)" << std::endl;
-            this->mocap_tcp_port = "22223";
+            std::cout << "No QTM TCP port given. Assume 22222" << std::endl;
+            this->base_port = 22222;
         }
 
-        if (vm.count("mocap_udp_port")) {
-            unsigned short int val = vm["mocap_udp_port"].as<unsigned short int>();
+        if (vm.count("mocap_stream_port")) {
+            unsigned short int val = vm["mocap_stream_port"].as<unsigned short int>();
             std::cout << "Telling QTM to stream on UDP port " << val << std::endl;
-            this->mocap_udp_port = val;
+            this->stream_port = val;
         } else {
             std::cout << "No QTM udp port given. Assume 12345" << std::endl;
-            this->mocap_udp_port = 12345;
+            this->stream_port = 12345;
         }
     }
 
@@ -176,30 +187,121 @@ public:
         // thread.
         // also see the optitrack client, which does it with callback
 
-        boost::asio::ip::tcp::resolver resolver(this->io_service_tcp);
-        this->socket_tcp = new boost::asio::ip::tcp::socket(this->io_service_tcp);
-        boost::asio::ip::tcp::resolver::query query(this->mocap_ip, this->mocap_tcp_port);
-        boost::asio::connect(*this->socket_tcp, resolver.resolve(query));
-        std::cout << "Connected to Qualisys server." << std::endl;
+        const int majorVersion = 1;
+        const int minorVersion = 24; // todo: double check this
+        if (!this->rtProtocol.Connect(this->server_addr.c_str(), this->base_port, &this->stream_port, majorVersion, minorVersion, this->bigEndian))
+        {
+            std::cout << "rtProtocol.Connect: " << this->rtProtocol.GetErrorString() << std::endl;
+            std::raise(SIGINT);
+        }
 
+        bool data_available = false;
+        if (!this->rtProtocol.Read6DOFSettings(data_available))
+        {
+            //RCLCPP_ERROR(this->get_logger(), "rtProtocol.Read6DOFSettings: %s", rtProtocol.GetErrorString());
+            std::cout << "error in read 6dof settings" << std::endl;
+            sleep(1);
+            std::raise(SIGINT);
+        }
 
-        this->send_tcp_command("Version");
-        this->send_tcp_command("StreamFrames AllFrames 6D FrequencyDivisor:5 UDP:12345");
+        // NULL: just send back to the host that sends the request
+        // cComponent6D: position and rotation matrix
+        if (!this->rtProtocol.StreamFrames(CRTProtocol::RateFrequencyDivisor, 1, this->stream_port, NULL, CRTProtocol::cComponent6d))
+        {
+            std::cout << "rtProtocol.StreamFrames: " << rtProtocol.GetErrorString() << std::endl;
+            std::raise(SIGINT);
+        }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-        this->remote_endpoint = boost::asio::ip::udp::endpoint(boost::asio::ip::udp::v4(), this->mocap_udp_port);
-        this->socket_udp.open(boost::asio::ip::udp::v4());
-        this->socket_udp.bind(this->remote_endpoint);
-
-        this->asyncReceiver = std::thread([this]() {
-            io_context_udp.run(); // This will block and process async events
-        });
-        this->wait();
+        this->receiverThread = std::thread(&QualisysMocap::data_handler,
+                                    this
+                                    );
 
         return 0;
     }
 
+    void data_handler() {
+        while (!this->shouldStop) {
+            bool anyTracked = false;
+
+            CRTPacket::EPacketType packetType;
+            if (rtProtocol.Receive(packetType, true) == CNetwork::ResponseType::success)
+            {
+                if (packetType == CRTPacket::PacketData)
+                {
+                    float fX, fY, fZ;
+                    float rmatVec[9];
+
+                    CRTPacket* rtPacket = rtProtocol.GetRTPacket();
+                    uint64_t markerTimeUs = rtPacket->GetTimeStamp();
+
+                    for (unsigned int i = 0; i < rtPacket->Get6DOFBodyCount(); i++)
+                    {
+                        if (rtPacket->Get6DOFBody(i, fX, fY, fZ, rmatVec))
+                        {
+                            const char* pTmpStr = rtProtocol.Get6DOFBodyName(i);
+                            RigidBody* theRb = nullptr;
+                            if (pTmpStr) {
+                                for (auto& rb : this->RBs) {
+                                    if (strcmp(pTmpStr, rb.name.c_str()) == 0) {
+                                        theRb = &rb;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                // untracked
+                                continue;
+                            }
+
+                            if (!theRb) {
+                                continue; // untracked
+                            }
+
+                            if ( isnan(fX) || isnan(fY) || isnan(fZ) ) {
+                                continue;
+                            }
+
+                            anyTracked = true;
+
+                            // TODO: check rotation matrix transpose
+                            quaternion_t quat;
+                            rotationMatrix_t rotM = { .m = {
+                                    { rmatVec[0], rmatVec[3], rmatVec[6] },
+                                    { rmatVec[1], rmatVec[4], rmatVec[7] },
+                                    { rmatVec[2], rmatVec[5], rmatVec[8] }
+                            }};
+
+                            quaternion_of_rotationMatrix(&quat, &rotM);
+
+                            pose_t newPose {
+                                markerTimeUs,
+                                .x = 1e-3f * fX, .y = 1e-3f * fY, .z = 1e-3f * fZ,
+                                .qx = quat.x, .qy = quat.y, .qz = quat.z, .qw = quat.w
+                            };
+
+                            // TODO; convert transform
+
+                            theRb->setNewPoseENU_NorthFarSide( newPose );
+                        }
+                    }
+
+                    if ( this->agent->printMessages && !anyTracked ) {
+                        std::cout << "Received QTM RT data for " << rtPacket->Get6DOFBodyCount() << " 6DOF rigid bodies for host time: " << markerTimeUs << "us";
+                        std::cout << ", but none are tracked";
+                        std::cout << std::endl;
+                    }
+
+                    if (anyTracked) {
+                        // internally, we still check if there _actually_ is a new sample
+                        // for each rigid body
+                        this->agent->new_data_available( this->RBs );
+                    }
+                }
+            }
+            //std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
+
+/*
     void data_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
     {
         char* buf = recv_buffer.data();
@@ -235,8 +337,8 @@ public:
                 quaternion_of_rotationMatrix(&quat, &rotM);
 
                 pose_t newPose = { header.MarkerTimestamp,
-                    .x = body.x, .y = body.y, .z = body.z,
-                    .qx = quat.x, .qy = quat.y, .qz = quat.z, .qw = quat.w
+                    body.x, body.y, body.z,
+                    quat.x, quat.y, quat.z, quat.w
                     };
 
                 if (this->RBs.size() > 0) {
@@ -274,21 +376,7 @@ bail_out:
 
         std::cout << "Sent command: " << command << std::endl;
     }
-
-private:
-    std::string mocap_ip;
-    std::string mocap_tcp_port;
-    boost::asio::io_service io_service_tcp;
-    boost::asio::ip::tcp::socket* socket_tcp;
-
-    unsigned short int mocap_udp_port;
-    boost::asio::io_context io_context_udp;
-    boost::asio::ip::udp::socket socket_udp;
-
-    boost::asio::ip::udp::endpoint remote_endpoint;
-    boost::array<char, 4096> recv_buffer;
-
-    std::thread asyncReceiver;
+*/
 };
 
 #endif // H_QUALISYS_MOCAP

@@ -24,14 +24,12 @@ add_executable(client ${SOURCES})
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
 if(NOT DEFINED MOCAPS)
     message(STATUS "MOCAPS is not set. Continuing with all mocaps")
-    #set(MOCAPS "test,optitrack,vicon,qualisys" CACHE STRING "Mocaps to build into the binary")
     set(MOCAPS "test;optitrack;qualisys" CACHE STRING "Mocaps to build into the binary")
 endif(NOT DEFINED MOCAPS)
 
 if(NOT DEFINED AGENTS)
     message(STATUS "AGENTS is not set. Continuing with all agents")
-    #set(AGENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Agents to build into the binary")
-    set(AGENTS "console;udp" CACHE STRING "Agents to build into the binary")
+    set(AGENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Agents to build into the binary")
 endif(NOT DEFINED AGENTS)
 
 foreach(x ${AGENTS})
@@ -78,24 +76,7 @@ if ("optitrack" IN_LIST MOCAPS)
     target_link_libraries(client natnet_sdk)
 endif()
 
-if ("vicon" IN_LIST MOCAPS)
-    include(FetchContent)
-    fetchcontent_declare(vicon_sdk_content
-      URL https://app.box.com/shared/static/7s2j1j2oec1d19up2p5se5tlqrsky149.zip
-    )
-    fetchcontent_makeavailable(vicon_sdk_content)
-
-    add_library(vicon_sdk SHARED IMPORTED)
-    set_target_properties(vicon_sdk PROPERTIES IMPORTED_LOCATION ${vicon_sdk_content_SOURCE_DIR}/20230413_145507h/Release/Linux64/libViconDataStreamSDK_CPP.so)
-    target_include_directories(vicon_sdk INTERFACE ${vicon_sdk_content_SOURCE_DIR}/20230413_145507h/Release/Linux64/)
-    target_link_libraries(client vicon_sdk)
-endif()
-
 if ("qualisys" IN_LIST MOCAPS)
-    find_package(Boost REQUIRED COMPONENTS system)
-endif()
-
-if ("qualisys_sdk" IN_LIST MOCAPS)
     # Include ExternalProject module
     include(ExternalProject)
 

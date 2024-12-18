@@ -105,7 +105,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/build/client",
-        "args": ["qualisys_sdk", "console", "-d", "75", "-f", "15", "-c", "NED", "-r", "far_side", "--streaming_names", "dummy", "-n", "far_side", "--mocap_ip", "172.31.107.200"],
+        "args": ["qualisys", "console", "-d", "75", "-f", "15", "-c", "NED", "-r", "far_side", "--streaming_names", "dummy", "-n", "far_side", "--mocap_ip", "172.31.107.200"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],

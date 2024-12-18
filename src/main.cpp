@@ -28,18 +28,9 @@
     #include "optitrack_mocap.hpp"
 #endif
 
-#ifdef USE_MOCAP_VICON
-    #include "vicon_mocap.hpp"
-#endif
-
 #ifdef USE_MOCAP_QUALISYS
     #include "qualisys_mocap.hpp"
 #endif
-
-#ifdef USE_MOCAP_QUALISYS_SDK
-    #include "qualisys_sdk_mocap.hpp"
-#endif
-
 
 
 
@@ -87,19 +78,9 @@ int main(int argc, char const *argv[])
         mocap = new OptiTrackMocap();
     } else
 #endif
-#ifdef USE_MOCAP_VICON
-    if (strcasecmp(argv[1], "vicon") == 0) {
-        mocap = new ViconMocap();
-    } else
-#endif
 #ifdef USE_MOCAP_QUALISYS
     if (strcasecmp(argv[1], "qualisys") == 0) {
         mocap = new QualisysMocap();
-    } else
-#endif
-#ifdef USE_MOCAP_QUALISYS_SDK
-    if (strcasecmp(argv[1], "qualisys_sdk") == 0) {
-        mocap = new QualisysSdkMocap();
     } else
 #endif
     {
