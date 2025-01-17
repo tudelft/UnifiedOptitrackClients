@@ -22,28 +22,45 @@ file(GLOB SOURCES "src/*.cpp" "src/agents/*.cpp" "src/common/*.cpp" "src/mocaps/
 add_executable(client ${SOURCES})
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
+set(ALL_MOCAPS "test;optitrack;qualisys")
+set(ALL_AGENTS "console;ivy;udp;log;ros2;ros2px4")
+
+# process arguments: use all mocaps/agents if unset
 if(NOT DEFINED MOCAPS)
     message(STATUS "MOCAPS is not set. Continuing with all mocaps")
-    set(MOCAPS "test;optitrack;qualisys" CACHE STRING "Mocaps to build into the binary")
+    set(MOCAPS ${ALL_MOCAPS} CACHE STRING "Mocaps to build into the binary")
 endif(NOT DEFINED MOCAPS)
+
+foreach(x ${MOCAPS})
+    string(REPLACE " " "" stripped "${x}")
+
+    list(FIND ALL_MOCAPS ${stripped} index)
+    if(index EQUAL -1)
+        message(FATAL_ERROR "Mocap ${x} not in supported agent list: ${ALL_MOCAPS}")
+    endif()
+
+    string(TOUPPER ${stripped} uppercase)
+    add_definitions(-DUSE_MOCAP_${uppercase})
+endforeach()
+
 
 if(NOT DEFINED AGENTS)
     message(STATUS "AGENTS is not set. Continuing with all agents")
-    set(AGENTS "console;ivy;udp;log;ros2;ros2px4" CACHE STRING "Agents to build into the binary")
+    set(AGENTS ${ALL_AGENTS} CACHE STRING "Agents to build into the binary")
 endif(NOT DEFINED AGENTS)
 
 foreach(x ${AGENTS})
-    string(TOUPPER ${x} uppercase)
+    string(REPLACE " " "" stripped "${x}")
+
+    list(FIND ALL_AGENTS ${stripped} index)
+    if(index EQUAL -1)
+        message(FATAL_ERROR "Agent ${x} not in supported agent list: ${ALL_AGENTS}")
+    endif()
+
+    string(TOUPPER ${stripped} uppercase)
     add_definitions(-DUSE_AGENT_${uppercase})
-    #ADD_CUSTOM_TARGET(${x}_symlink ALL
-    #                  COMMAND ${CMAKE_COMMAND} -E create_symlink client mocap2${x}
-    #                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endforeach()
 
-foreach(x ${MOCAPS})
-    string(TOUPPER ${x} uppercase)
-    add_definitions(-DUSE_MOCAP_${uppercase})
-endforeach()
 
 include_directories(include)
 include_directories(src/agents)
@@ -67,6 +84,7 @@ if ("optitrack" IN_LIST MOCAPS)
     include(FetchContent)
     fetchcontent_declare(natnet_sdk_content
       URL https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.1_ubuntu.tar
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     fetchcontent_makeavailable(natnet_sdk_content)
 
@@ -131,6 +149,7 @@ if ("ros2px4" IN_LIST AGENTS)
       px4_msgs
       GIT_REPOSITORY https://github.com/PX4/px4_msgs
       GIT_TAG release/1.14
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     FetchContent_MakeAvailable(px4_msgs)
 
