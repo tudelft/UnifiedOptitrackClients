@@ -6,15 +6,19 @@
 #include <cmath>
 #include <string>
 
-RigidBody::RigidBody( unsigned int id, ArenaDirection nose_direction ) : RigidBody(id, std::to_string(id), nose_direction)
+RigidBody::RigidBody( unsigned int streaming_id,
+                      ArenaDirection nose_direction ) :
+        RigidBody(streaming_id, std::to_string(streaming_id), nose_direction)
 {
 }
 
-RigidBody::RigidBody( unsigned int id, std::string name, ArenaDirection nose_direction ) : 
+RigidBody::RigidBody( unsigned int streaming_id,
+                      std::string streaming_name,
+                      ArenaDirection nose_direction ) :
     //velocity_filter_hz{20.f},
     //rates_filter_hz{10.f},
-    id{id},
-    name{name},
+    streaming_id{streaming_id},
+    streaming_name{streaming_name},
     unpublished_samples{0}
 {
     switch(nose_direction)

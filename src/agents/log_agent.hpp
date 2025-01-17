@@ -16,16 +16,12 @@
 #ifndef LOG_AGENT_HPP
 #define LOG_AGENT_HPP
 
-#include "unified_mocap_client.hpp"
+#include "agent.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
-
-#ifndef LOG_AGENT_HPP
-#define LOG_AGENT_HPP
-#endif // ifndef LOG_AGENT_HPP
 
 enum LogType {CSV = 0};
 
@@ -36,10 +32,10 @@ std::ostream& operator<<(std::ostream& lhs, LogType e) {
     return lhs;
 } 
 
-class Mocap2Log : public UnifiedMocapClient
+class LogAgent : public Agent
 {
 public:
-    Mocap2Log() : _logType{LogType::CSV}
+    LogAgent() : _logType{LogType::CSV}
     {
         std::cout<< R"(
 ##  _               #############################################################
@@ -51,7 +47,7 @@ public:
 )" << std::endl;
     }
 
-    ~Mocap2Log() {
+    ~LogAgent() {
         if (_logFile.is_open())
             _logFile.close();
     }
@@ -98,24 +94,15 @@ private:
         _logFile << std::endl;
     }
 
-    void publish_data() override
+    bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
-        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        {
-            if (this->isUnpublishedRB(i)) {
-                unsigned int streaming_id = this->getStreamingId(i);
-                pose_t pose = this->getPoseRB(i);
-                twist_t twist = this->getPoseDerRB(i);
-
-                _logFile << boost::format("%1%,%2%,") % pose.timeUs % streaming_id;
-                _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
+        _logFile << boost::format("%1%,%2%,") % pose.timeUs % this->streaming_ids.at(idx);
+        _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
                     % pose.x % pose.y % pose.z % pose.qx % pose.qy % pose.qz % pose.qw;
-                _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")
+        _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")
                     % twist.vx % twist.vy % twist.vz % twist.wx % twist.wy % twist.wz;
-
-                _logFile << std::endl;
-            }
-        }
+        _logFile << std::endl;
+        return true;
     }
 
 private:

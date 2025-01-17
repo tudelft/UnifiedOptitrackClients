@@ -18,6 +18,7 @@
 
 #include <iostream>
 #include <csignal>
+#include <cstdint>
 #include <cmath>
 
 enum CoordinateSystem { NED, ENU };

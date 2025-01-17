@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <csignal>
+#include <math.h>
 
 #include <unistd.h>
 

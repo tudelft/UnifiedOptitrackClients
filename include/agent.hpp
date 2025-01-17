@@ -34,6 +34,9 @@ protected:
     float publish_frequency;
     CoordinateSystem csys;
     float true_north_rad;
+
+    std::vector<unsigned int> streaming_ids;
+    std::vector<std::string> streaming_names;
 public:
     bool printMessages;
 
@@ -45,6 +48,7 @@ public:
     void set_csys( CoordinateSystem csys );
     void set_north( float true_north_rad );
     void new_data_available( std::vector<RigidBody>& RBs );
+    void register_rigid_body(const RigidBody& RB);
 
     virtual void banner();
 

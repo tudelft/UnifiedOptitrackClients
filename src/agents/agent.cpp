@@ -35,6 +35,13 @@ void Agent::banner()
 {
 }
 
+
+void Agent::register_rigid_body(const RigidBody& RB)
+{
+    this->streaming_ids.push_back(RB.streaming_id);
+    this->streaming_names.push_back(RB.streaming_name);
+}
+
 void Agent::set_publish_speed( unsigned int div, float freq ) {
     this->publish_every = div;
     this->publish_frequency = freq;

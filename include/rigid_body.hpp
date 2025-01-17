@@ -21,11 +21,14 @@ class RigidBody
         PoseDifferentiator poseDiff;
 
     public:
-        unsigned int id;
-        std::string name;
+        unsigned int streaming_id;
+        std::string streaming_name;
 
-        RigidBody(unsigned int id, ArenaDirection nose_direction);
-        RigidBody(unsigned int id, std::string, ArenaDirection nose_direction);
+        RigidBody(unsigned int streaming_id,
+                  ArenaDirection nose_direction);
+        RigidBody(unsigned int streaming_id,
+                  std::string streaming_name,
+                  ArenaDirection nose_direction);
 
         pose_t getPoseIn( CoordinateSystem co, float north_angle );
         twist_t getTwistIn( CoordinateSystem co, float north_angle );

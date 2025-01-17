@@ -239,6 +239,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
         if ( (this->craft_nose_strings.size() != this->streaming_ids.size()) &&
             (this->craft_nose_strings.size() != this->streaming_names.size()) ) {
             std::cout << "Streaming IDs or streaming names input must be the same length as craft_noses!" << std::endl;
+            std::raise(SIGINT);
         }
 
         for (size_t i = 0; i < this->craft_nose_strings.size(); ++i) {
@@ -278,6 +279,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
             }
 
             this->mocap->track_rigid_body(*rb);
+            this->agent->register_rigid_body(*rb);
         }
     }
     else
