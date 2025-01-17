@@ -60,12 +60,48 @@ namespace{
     void signal_handler(int signal) { shutdown_handler(signal); }
 }
 
+static void print_usage(char const *prog_name) {
+    printf("Usage: %s MOCAP AGENT [-h|--help] [options]\n\n", prog_name);
+    printf("Available MOCAPs: ");
+#ifdef USE_MOCAP_TEST
+    printf("test");
+#endif
+#ifdef USE_MOCAP_OPTITRACK
+    printf("optitrack");
+#endif
+#ifdef USE_MOCAP_QUALISYS
+    printf("qualisys");
+#endif
+    printf("\n");
+
+    printf("Available AGENTs: ");
+#ifdef USE_AGENT_CONSOLE
+    printf("console ");
+#endif
+#ifdef USE_AGENT_LOG
+    printf("log ");
+#endif
+#ifdef USE_AGENT_IVY
+    printf("ivy ");
+#endif
+#ifdef USE_AGENT_UDP
+    printf("udp ");
+#endif
+#ifdef USE_AGENT_ROS2
+    printf("ros2 ");
+#endif
+#ifdef USE_AGENT_ROS2PX4
+    printf("ros2px4 ");
+#endif
+    printf("\n");
+}
+
 int main(int argc, char const *argv[])
 {
     if (argc < 3) {
+        print_usage(argv[0]);
         return 1;
     }
-
 
     Mocap* mocap = nullptr;
 #ifdef USE_MOCAP_TEST
@@ -85,6 +121,7 @@ int main(int argc, char const *argv[])
 #endif
     {
         std::cout << "Support for Mocap '" << argv[1] << "' has not been compiled into the program. exiting." << std::endl;
+        print_usage(argv[0]);
         return 1;
     }
 
@@ -124,6 +161,7 @@ int main(int argc, char const *argv[])
 #endif
     {
         std::cout << "Support for agent '" << argv[2] << "' was not compiled into the program. exiting." << std::endl;
+        print_usage(argv[0]);
         return 1;
     }
 
