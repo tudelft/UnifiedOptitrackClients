@@ -27,9 +27,9 @@ std::ostream& operator<<(std::ostream& lhs, CoordinateSystem e) {
 std::ostream& operator<<(std::ostream& lhs, ArenaDirection e) {
     switch(e) {
     case RIGHT: lhs << "RIGHT"; break;
-    case FAR_SIDE: lhs << "FAR_SIDE"; break;
+    case FAR: lhs << "FAR"; break;
     case LEFT: lhs << "LEFT"; break;
-    case NEAR_SIDE: lhs << "NEAR_SIDE"; break;
+    case NEAR: lhs << "NEAR"; break;
     }
     return lhs;
 } 
@@ -108,7 +108,7 @@ pose_t transform_pose(const CoordinateSystem co,
             case ArenaDirection::RIGHT:
                 // We do nothing because this is what we want to have
                 break;
-            case ArenaDirection::FAR_SIDE:
+            case ArenaDirection::FAR:
                 // Rotate to align in the yaw plane
                 result.x = z_copy;
                 result.z = -x_copy;
@@ -124,7 +124,7 @@ pose_t transform_pose(const CoordinateSystem co,
                 result.qx = -qx_copy;
                 result.qz = -qz_copy;
                 break;
-            case ArenaDirection::NEAR_SIDE:
+            case ArenaDirection::NEAR:
                 // Rotate to align in the yaw plane
                 result.x = -z_copy;
                 result.z = x_copy;
@@ -145,20 +145,20 @@ pose_t transform_pose(const CoordinateSystem co,
             // left hand pi/2 rotation around Y axis (up)
             case ArenaDirection::RIGHT: { nose_rot_angle = -M_PI/2.0; break; }
             // no change, because this is what we have
-            case ArenaDirection::FAR_SIDE: { nose_rot_angle = 0.0; break; }
+            case ArenaDirection::FAR: { nose_rot_angle = 0.0; break; }
             // right hand pi/2 rotation around Y axis (up)
             case ArenaDirection::LEFT: { nose_rot_angle = M_PI/2.0; break; }
             // pi rotation around Y
-            case ArenaDirection::NEAR_SIDE: { nose_rot_angle = M_PI; break; }
+            case ArenaDirection::NEAR: { nose_rot_angle = M_PI; break; }
         }
 
         float co_north_angle;
         switch(co_north)
         {
             case ArenaDirection::RIGHT: { co_north_angle = -M_PI/2.0; break; }
-            case ArenaDirection::FAR_SIDE: { co_north_angle = 0.0; break; }
+            case ArenaDirection::FAR: { co_north_angle = 0.0; break; }
             case ArenaDirection::LEFT: { co_north_angle = M_PI/2.0; break; }
-            case ArenaDirection::NEAR_SIDE: { co_north_angle = M_PI; break; }
+            case ArenaDirection::NEAR: { co_north_angle = M_PI; break; }
             case ArenaDirection::TRUE_NORTH:
                 co_north_angle = true_north_deg * M_PI / 180.0;
                 if (co == CoordinateSystem::NED)

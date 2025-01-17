@@ -26,11 +26,11 @@ RigidBody::RigidBody( unsigned int streaming_id,
         // left hand pi/2 rotation around Y axis (up)
         case ArenaDirection::RIGHT: { this->nose_rot_angle = -M_PI/2.0; break; }
         // no change, because this is what we want to have
-        case ArenaDirection::FAR_SIDE: { this->nose_rot_angle = 0.0; break; }
+        case ArenaDirection::FAR: { this->nose_rot_angle = 0.0; break; }
         // right hand pi/2 rotation around Y axis (up)
         case ArenaDirection::LEFT: { this->nose_rot_angle = M_PI/2.0; break; }
         // pi rotation around Y
-        case ArenaDirection::NEAR_SIDE: { this->nose_rot_angle = M_PI; break; }
+        case ArenaDirection::NEAR: { this->nose_rot_angle = M_PI; break; }
     }
     this->poseDiff = PoseDifferentiator(); 
     //this->poseDiff = FilteredPoseDifferentiator( 

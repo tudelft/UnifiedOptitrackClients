@@ -102,10 +102,10 @@ void UnifiedMocapClient::add_base_po()
         ("publish_divisor,d", po::value<unsigned int>(), "Publish every <publish_divisor> sample of the incoming MoCap data")
         ("publish_frequency,f", po::value<float>(), "Publish at least at this frequency, if there are new samples.")
         ("coordinate_system,c", po::value<std::string>(), "coordinate system convention to use [ned, enu]")
-        ("coordinate_north,r", po::value<std::string>(), "where north should be relative to the observer. Either non-zero number describing right-hand rotation of north axis from the far side, or one of [right, far_side, left, near_side].")
+        ("coordinate_north,r", po::value<std::string>(), "where north should be relative to the observer. Either non-zero number describing right-hand rotation of north axis from the far side, or one of [right, far, left, near].")
         ("streaming_ids,s", po::value<std::vector<unsigned int>>()->multitoken(), "streaming ids to track")
         ("streaming_names", po::value<std::vector<std::string>>()->multitoken(), "streaming names to track. Alternative to -s")
-        ("craft_noses,n", po::value<std::vector<std::string>>()->multitoken(), "direction of aircraft noses when creating the rigid body in the mocap software. space-separated list of [right, far_side, left, near_side]")
+        ("craft_noses,n", po::value<std::vector<std::string>>()->multitoken(), "direction of aircraft noses when creating the rigid body in the mocap software. space-separated list of [right, far, left, near]")
     ;
 }
 
@@ -158,7 +158,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
         {
             true_north_rad = -M_PI/2.0f;
         }
-        else if(co_north.compare("far_side") == 0)
+        else if(co_north.compare("far") == 0)
         {
             true_north_rad = 0.f;
         }
@@ -166,7 +166,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
         {
             true_north_rad = +M_PI/2.0f;
         }
-        else if (co_north.compare("near_side") == 0)
+        else if (co_north.compare("near") == 0)
         {
             true_north_rad = +M_PI;
         }
@@ -174,7 +174,7 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
         {
             true_north_rad = M_PI/180.f * std::atof(co_north.c_str());
             if (true_north_rad == 0.0) {
-                std::cout << "Coordinate system argument " << co_north << " is neither [near_side, far_side, right, left], nor float (for 0.0 use far_side). Exiting" << std::endl;
+                std::cout << "Coordinate system argument " << co_north << " is neither [near, far, right, left], nor float (for 0.0 use far). Exiting" << std::endl;
                 std::raise(SIGINT);
             }
 
@@ -251,17 +251,17 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
             {
                 dir = ArenaDirection::RIGHT;
             }
-            else if(str.compare("far_side") == 0)
+            else if(str.compare("far") == 0)
             {
-                dir = ArenaDirection::FAR_SIDE;
+                dir = ArenaDirection::FAR;
             }
             else if (str.compare("left") == 0)
             {
                 dir = ArenaDirection::LEFT;
             }
-            else if (str.compare("near_side") == 0)
+            else if (str.compare("near") == 0)
             {
-                dir = ArenaDirection::NEAR_SIDE;
+                dir = ArenaDirection::NEAR;
             }
             else
             {
@@ -319,7 +319,7 @@ void UnifiedMocapClient::print_coordinate_system() const
      │       [craft] ▶          │
      │                          │)";
             break;
-        case ArenaDirection::FAR_SIDE:
+        case ArenaDirection::FAR:
             std::cout << R"(
      │            ▲             │
      │         [craft]          │
@@ -331,7 +331,7 @@ void UnifiedMocapClient::print_coordinate_system() const
      │       ◀ [craft]          │
      │                          │)";
             break;
-        case ArenaDirection::NEAR_SIDE:
+        case ArenaDirection::NEAR:
             std::cout << R"(
      │                          │
      │         [craft]          │
@@ -390,7 +390,7 @@ left │                          │ right )";
      │   z  ⓧ → x               │
      │    y ↓                   │)";
                     break;
-                case ArenaDirection::FAR_SIDE:
+                case ArenaDirection::FAR:
                     std::cout << R"( 
      │    x ↑                   │
      │   z  ⓧ → y               │
@@ -402,7 +402,7 @@ left │                          │ right )";
      │  x ← ⓧ z                 │
      │                          │)";
                     break;
-                case ArenaDirection::NEAR_SIDE:
+                case ArenaDirection::NEAR:
                     std::cout << R"( 
      │                          │
      │  y ← ⓧ z                 │
@@ -422,7 +422,7 @@ left │                          │ right )";
         case CoordinateSystem::ENU:
             switch (this->co_north)
             {
-                case ArenaDirection::FAR_SIDE:
+                case ArenaDirection::FAR:
                     std::cout << R"( 
      │    y ↑                   │
      │   z  ⊙ → x               │
@@ -434,7 +434,7 @@ left │                          │ right )";
      │  y ← ⊙ z                 │
      │                          │)";
                     break;
-                case ArenaDirection::NEAR_SIDE:
+                case ArenaDirection::NEAR:
                     std::cout << R"( 
      │                          │
      │  x ← ⊙ z                 │

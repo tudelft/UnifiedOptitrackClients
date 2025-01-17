@@ -101,6 +101,7 @@ public:
     {
         this->_remote_endpoint = ip::udp::endpoint(ip::address::from_string(this->_client_ip), this->_port);
         this->_socket.open(ip::udp::v4());
+        this->initialized = true;
     }
 
     bool publish_data(int idx, pose_t& pose, twist_t& twist) override

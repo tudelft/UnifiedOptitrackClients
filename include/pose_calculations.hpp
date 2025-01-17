@@ -22,7 +22,7 @@
 #include <cmath>
 
 enum CoordinateSystem { NED, ENU };
-enum ArenaDirection{ RIGHT=0, FAR_SIDE, LEFT, NEAR_SIDE, TRUE_NORTH };
+enum ArenaDirection{ RIGHT=0, FAR, LEFT, NEAR, TRUE_NORTH };
 
 typedef struct pose_s {
     uint64_t timeUs;

@@ -25,36 +25,44 @@
 #include <unistd.h>
 #include <csignal>
 
-class Mocap2Ivy : public Agent
+class IvyAgent : public Agent
 {
 public:
-    Mocap2Ivy()
+    IvyAgent()
     {
+    }
+
+    ~IvyAgent()
+    {
+        IvyStop();
+    }
+
+    void banner() override
+    {
+        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
-##  ___           ###############################################################
+##  ___           ##
 ## |_ _|_ ___  _  ##
 ##  | |\ V / || | ##
 ## |___|\_/ \_, | ##
 ##          |__/  ##
-####################
-)" << std::endl;
+####################)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         desc.add_options()
-            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>()->multitoken(), "Aircraft Id to forward IVY messages to.")
+            ("ac_id,ac", boost::program_options::value<std::vector<unsigned int>>()->multitoken(), "Aircraft Id(s) to forward IVY messages to.")
             ("broadcast_address,b", boost::program_options::value<std::string>(), "Ivy broadcast ip address.")
         ;
     }
 
     void parse_extra_po(const boost::program_options::variables_map &vm) override
     {
-        // TODO: make this a list to correspond to rigid_body ids
         if (vm.count("ac_id"))
         {
             this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
-            if (this->_ac_id.size() != this->getStreamingIds().size()) {
+            if (this->_ac_id.size() != this->streaming_ids.size()) {
                 std::cout << "Number of ac_ids and streaming_ids passed must be equal"
                     << std::endl;
                 std::raise(SIGINT);
@@ -82,6 +90,7 @@ public:
     {
         IvyInit ("Mocap2Ivy", "Mocap2Ivy READY", NULL, NULL, NULL, NULL);
         IvyStart(this->bip.c_str());
+        this->initialized = true;
     }
 
     void post_start() override
@@ -90,13 +99,13 @@ public:
         IvyMainLoop();
     }
 
-    bool publish_data(int rb_id, int streaming_id, pose_t& pose, twist_t& twist) override
+    bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
         IvySendMsg("datalink EXTERNAL_POSE %d %lu  %f %f %f  %f %f %f  %f %f %f %f",
-            _ac_id[rb_id], pose->timeUs/1000,  //todo: probably not the right timestamp
-            pose->x, pose->y, pose->z,
-            twist->x, twist->y, twist->z,
-            pose->qw, pose->qx, pose->qy, pose->qz);
+            _ac_id[idx], pose.timeUs/1000,  //todo: probably not the right timestamp
+            pose.x, pose.y, pose.z,
+            twist.vx, twist.vy, twist.vz,
+            pose.qw, pose.qx, pose.qy, pose.qz);
 
         return true;
     }

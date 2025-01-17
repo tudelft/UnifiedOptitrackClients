@@ -98,7 +98,7 @@ public:
         //    ("listofint,i", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")
         //;
         desc.add_options()
-            ("long_edge,l", po::value<std::string>(), "direction of long edge during Motive ground-plane calibration [right, far_side, left, near_side]")
+            ("long_edge,l", po::value<std::string>(), "direction of long edge during Motive ground-plane calibration [right, far, left, near]")
         ;
     }
 
@@ -117,17 +117,17 @@ public:
             {
                 this->long_edge = ArenaDirection::RIGHT;
             }
-            else if(le.compare("far_side") == 0)
+            else if(le.compare("far") == 0)
             {
-                this->long_edge = ArenaDirection::FAR_SIDE;
+                this->long_edge = ArenaDirection::FAR;
             }
             else if (le.compare("left") == 0)
             {
                 this->long_edge = ArenaDirection::LEFT;
             }
-            else if (le.compare("near_side") == 0)
+            else if (le.compare("near") == 0)
             {
-                this->long_edge = ArenaDirection::NEAR_SIDE;
+                this->long_edge = ArenaDirection::NEAR;
             }
             else
             {
@@ -360,7 +360,7 @@ public:
                 case ArenaDirection::RIGHT:
                     // We do nothing because this is what we want to have
                     break;
-                case ArenaDirection::FAR_SIDE:
+                case ArenaDirection::FAR:
                     // Rotate to align in the yaw plane
                     newPoseENU_northFarSide.y = newPoseENU_longEdgeEast.x;
                     newPoseENU_northFarSide.x = -newPoseENU_longEdgeEast.y;
@@ -376,7 +376,7 @@ public:
                     newPoseENU_northFarSide.qy = -newPoseENU_longEdgeEast.qy;
                     newPoseENU_northFarSide.qx = -newPoseENU_longEdgeEast.qx;
                     break;
-                case ArenaDirection::NEAR_SIDE:
+                case ArenaDirection::NEAR:
                     // Rotate to align in the yaw plane
                     newPoseENU_northFarSide.y = -newPoseENU_longEdgeEast.x;
                     newPoseENU_northFarSide.x = newPoseENU_longEdgeEast.y;
