@@ -16,7 +16,7 @@
 #ifndef ROS2_AGENT_HPP
 #define ROS2_AGENT_HPP
 
-#include "unified_mocap_client.hpp"
+#include "agent.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
@@ -28,10 +28,10 @@
 #include "px4_msgs/msg/timesync_status.hpp"
 #endif
 
-class Mocap2Ros2 : public UnifiedMocapClient, public rclcpp::Node
+class ROS2Agent : public Agent, public rclcpp::Node
 {
 public:
-    Mocap2Ros2() : Node("mocap_publisher",
+    ROS2Agent() : Node("mocap_publisher",
                          rclcpp::NodeOptions().arguments(
                                 {"--ros-args",
                                 "--disable-rosout-logs",
@@ -41,14 +41,17 @@ public:
 #ifdef USE_AGENT_ROS2PX4
                     , _px4_topics{"/fmu/in/vehicle_visual_odometry"}
 #endif                    
-    {  
+    {
+    }
+
+    void banner() override
+    {
         std::cout<< R"(
-##  ___  ___  ___   ___  ########################################################
+##  ___  ___  ___   ___  ##
 ## | _ \/ _ \/ __| |_  ) ##
 ## |   / (_) \__ \  / /  ##
 ## |_|_\\___/|___/ /___| ##
-###########################
-)" << std::endl;
+###########################)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
@@ -66,13 +69,13 @@ public:
     {
         if (vm.count("publish_topics")) {
             this->_topics  = vm["publish_topics"].as<std::vector<std::string> >();
-            std::cout << "ROS2 publishing topics: {";
-            for(std::string topic : this->_topics) std::cout << " " << topic;
-            std::cout << " }" << std::endl;
+            std::cout << "ROS2 publishing topics: { ";
+            for(std::string topic : this->_topics) std::cout << topic << " ";
+            std::cout << "}" << std::endl;
         } else {
-            std::cout << "No ROS2 Topics specified, Defaulting to: {";
-            for(std::string topic : this->_topics) std::cout << " " << topic;
-            std::cout << " }" << std::endl;
+            std::cout << "No ROS2 Topics specified, Defaulting to: { ";
+            for(std::string topic : this->_topics) std::cout << topic << " ";
+            std::cout << "}" << std::endl;
         }
 #ifdef USE_AGENT_ROS2PX4
         if(vm.count("px4_ids"))
@@ -107,7 +110,7 @@ public:
 
     void pre_start() override
     {
-        if(this->_topics.size() != this->getStreamingIds().size())
+        if(this->_topics.size() != this->streaming_ids.size())
         {
             std::cerr << "Number of topics does not match number of streaming ids. Exiting." << std::endl;
             std::raise(SIGINT);
@@ -130,97 +133,86 @@ public:
         {
             this->_px4_publishers.push_back(this->create_publisher<px4_msgs::msg::VehicleOdometry>(this->_px4_topics.at(i), 10));
         }
-        this->_timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", rclcpp::SensorDataQoS(), std::bind(&Mocap2Ros2::_timesync_callback, this, std::placeholders::_1));
+        this->_timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", rclcpp::SensorDataQoS(), std::bind(&ROS2Agent::_timesync_callback, this, std::placeholders::_1));
 #endif
+        this->initialized = true;
     }
 
-    void publish_data() override
+    bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
-        // Copy the streaming ids
-        std::vector<unsigned int> streaming_ids = this->getStreamingIds();
+        // Init Message
+        geometry_msgs::msg::PoseStamped pose_msg{};
+        geometry_msgs::msg::TwistStamped twist_msg{};
 
-        for(unsigned int i = 0; i < this->_pose_publishers.size(); i++)
-        {   
-            // Only publish messages if the current value is valid and has not been published before
-            if(this->isUnpublishedRB(i))
-            {
-                // Get the current pose and twist
-                pose_t pose = this->getPoseRB(i);
-                twist_t twist = this->getPoseDerRB(i);
+        // Transform the pose timestamp to unix time
+        double seconds = this->time_offset;
+        uint32_t seconds_t = static_cast<int32_t>(seconds);
+        uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
+        rclcpp::Time stamp = (rclcpp::Clock(RCL_SYSTEM_TIME).now() - rclcpp::Duration(seconds_t, nanoseconds_t));
 
-                // Init Message
-                geometry_msgs::msg::PoseStamped pose_msg{};
-                geometry_msgs::msg::TwistStamped twist_msg{};
+        // Init msg timestamp
+        pose_msg.header.stamp = stamp;
+        twist_msg.header.stamp = stamp;
 
-                // Transform the pose timestamp to unix time
-                double seconds = this->seconds_since_mocap_ts(pose.timeUs);
-                uint32_t seconds_t = static_cast<int32_t>(seconds);
-                uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
-                rclcpp::Time stamp = (rclcpp::Clock(RCL_SYSTEM_TIME).now() - rclcpp::Duration(seconds_t, nanoseconds_t));
+        // Init Frame ID
+        pose_msg.header.frame_id = "world";
+        twist_msg.header.frame_id = "world";
 
-                // Init msg timestamp
-                pose_msg.header.stamp = stamp;
-                twist_msg.header.stamp = stamp;
+        // Save in message
+        pose_msg.pose.position.x = pose.x;
+        pose_msg.pose.position.y = pose.y;
+        pose_msg.pose.position.z = pose.z;
 
-                // Init Frame ID
-                pose_msg.header.frame_id = "world";
-                twist_msg.header.frame_id = "world";
+        pose_msg.pose.orientation.w = pose.qw;
+        pose_msg.pose.orientation.x = pose.qx;
+        pose_msg.pose.orientation.y = pose.qy;
+        pose_msg.pose.orientation.z = pose.qz;
 
-                // Save in message
-                pose_msg.pose.position.x = pose.x;
-                pose_msg.pose.position.y = pose.y;
-                pose_msg.pose.position.z = pose.z;
+        twist_msg.twist.linear.x = twist.vx;
+        twist_msg.twist.linear.y = twist.vy;
+        twist_msg.twist.linear.z = twist.vz;
 
-                pose_msg.pose.orientation.w = pose.qw;
-                pose_msg.pose.orientation.x = pose.qx;
-                pose_msg.pose.orientation.y = pose.qy;
-                pose_msg.pose.orientation.z = pose.qz;
+        twist_msg.twist.angular.x = twist.wx;
+        twist_msg.twist.angular.y = twist.wy;
+        twist_msg.twist.angular.z = twist.wz;
 
-                twist_msg.twist.linear.x = twist.vx;
-                twist_msg.twist.linear.y = twist.vy;
-                twist_msg.twist.linear.z = twist.vz;
-                
-                twist_msg.twist.angular.x = twist.wx;
-                twist_msg.twist.angular.y = twist.wy;
-                twist_msg.twist.angular.z = twist.wz;
+        #ifdef USE_AGENT_ROS2PX4
+        /* If the current object is also in the list of ids
+         * that should be published on a px4 topic */
+        if(std::find(this->_px4_streaming_ids.begin(),
+                        this->_px4_streaming_ids.end(),
+                        streaming_ids.at(i)) != this->_px4_streaming_ids.end())
+        {
+            px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
 
-                #ifdef USE_AGENT_ROS2PX4
-                /* If the current object is also in the list of ids
-                 * that should be published on a px4 topic */
-                if(std::find(this->_px4_streaming_ids.begin(),
-                             this->_px4_streaming_ids.end(),
-                             streaming_ids.at(i)) != this->_px4_streaming_ids.end())
-                {
-                    px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
+            // Timestamp since system start (px4) in microseconds
+            px4_vehicle_odometry.timestamp = this->_timestamp_remote + (stamp - this->_timestamp_local).nanoseconds() * 1e-3;
+            px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
 
-                    // Timestamp since system start (px4) in microseconds
-                    px4_vehicle_odometry.timestamp = this->_timestamp_remote + (stamp - this->_timestamp_local).nanoseconds() * 1e-3;
-                    px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
+            // Frame definition
+            px4_vehicle_odometry.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_NED;
 
-                    // Frame definition
-                    px4_vehicle_odometry.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_NED;
+            // Pose and Twist
+            /* First transform to NED */
+            pose = this->toNED(pose);
+            twist = this->toNED(twist);
 
-                    // Pose and Twist
-                    /* First transform to NED */
-                    pose = this->toNED(pose);
-                    twist = this->toNED(twist);
+            /* Then store */
+            px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
+            px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
+            px4_vehicle_odometry.velocity = {twist.vx, twist.vy, twist.vz};
+            px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
 
-                    /* Then store */
-                    px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
-                    px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
-                    px4_vehicle_odometry.velocity = {twist.vx, twist.vy, twist.vz};
-                    px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
-
-                    // Publish
-                    this->_px4_publishers.at(i)->publish(px4_vehicle_odometry);
-                }
-                #endif
-
-                // Finally publish
-                this->_pose_publishers.at(i)->publish(pose_msg);
-                this->_twist_publishers.at(i)->publish(twist_msg);
-            }
+            // Publish
+            this->_px4_publishers.at(i)->publish(px4_vehicle_odometry);
         }
+        #endif
+
+        // Finally publish
+        this->_pose_publishers.at(idx)->publish(pose_msg);
+        this->_twist_publishers.at(idx)->publish(twist_msg);
+
+        return true;
     }
 
 private:

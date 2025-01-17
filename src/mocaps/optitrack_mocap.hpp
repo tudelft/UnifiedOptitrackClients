@@ -419,6 +419,9 @@ private:
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
     OptiTrackMocap* that = (OptiTrackMocap*) pUserData;
     that->data_handler(data);
+
+    // Update time delay to agent
+    that->agent->set_time_offset(that->pClient->SecondsSinceHostTimestamp(data->CameraMidExposureTimestamp));
 };
 
 #endif // H_OPTITRACK_MOCAP

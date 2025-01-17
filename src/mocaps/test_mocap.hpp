@@ -136,6 +136,10 @@ public:
                 this->agent->new_data_available( this->RBs );
             }
 
+            // Update time delay to agent
+            this->agent->set_time_offset(0.0);
+
+            // Sleep
             std::this_thread::sleep_for(std::chrono::milliseconds(intervalMs));
         }
     }

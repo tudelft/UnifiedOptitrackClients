@@ -51,9 +51,6 @@ public:
     virtual void add_extra_po(boost::program_options::options_description &desc);
     virtual void parse_extra_po(const boost::program_options::variables_map &vm);
     virtual int connect();
-    /* Returns the seconds since the a timestamp in
-     * MoCap reference time */
-    virtual double seconds_since_mocap_ts(uint64_t us);
 };
 
 #endif

@@ -55,7 +55,13 @@ void Agent::set_north( float true_north_rad ) {
     this->true_north_rad = true_north_rad;
 }
 
+void Agent::set_time_offset(float time_offset) {
+    this->time_offset = time_offset;
+}
+
 void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
+    if(!initialized) return;
+
     for (size_t i = 0; i < RBs.size(); ++i) {
         bool divisorReady = ( this->publish_every > 0 )  // true if divisor cli argument was passed
             && (RBs[i].getNumUnpublishedSamples() >= this->publish_every);
@@ -122,6 +128,7 @@ bool Agent::publish_data(int idx, pose_t& pose, twist_t& twist)
 // Non-action implementation of the virtual function to make the implementation optional
 void Agent::pre_start()
 {
+    this->initialized = true;
 }
 
 // Non-action implementation of the virtual function to make the implementation optional

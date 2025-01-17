@@ -92,6 +92,7 @@ private:
         // write header
         _logFile << "timestamp[us],RBid,x[m],y[m],z[m],qx,qy,qz,qw,vx[m/s],vy[m/s],vz[m/s],wxbody[rad/s],wybody[rad/s],wzbody[rad/s]";
         _logFile << std::endl;
+        this->initialized = true;
     }
 
     bool publish_data(int idx, pose_t& pose, twist_t& twist) override

@@ -52,10 +52,5 @@ int Mocap::connect()
     return 1;
 }
 
-double Mocap::seconds_since_mocap_ts(uint64_t us)
-{
-    return 0.;
-}
-
 
 

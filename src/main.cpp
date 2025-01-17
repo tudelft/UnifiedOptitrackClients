@@ -147,7 +147,7 @@ int main(int argc, char const *argv[])
         agent = new LogAgent();
     } else 
 #endif
-#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)
+#if (defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4))
     if (strcasecmp(argv[2], "ros2") == 0 || strcasecmp(argv[2], "ros2px4") == 0) {
         // Init ROS2
         rclcpp::init(argc-2, argv+2);
@@ -156,8 +156,8 @@ int main(int argc, char const *argv[])
         rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
 
         // Init agent
-        agent = new Ros2Agent();
-    }
+        agent = new ROS2Agent();
+    } else
 #endif
     {
         std::cout << "Support for agent '" << argv[2] << "' was not compiled into the program. exiting." << std::endl;
@@ -168,11 +168,11 @@ int main(int argc, char const *argv[])
 
     // enroll shutdown handler
     boost::filesystem::path p(argv[0]);
-    shutdown_handler = [p](int signum) 
+    shutdown_handler = [p, argv](int signum)
     { 
         std::cout << "Shutting down... Done. " << std::endl;
 #if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)  
-        if (strcasecmp(argv[2]) == "ros2" || strcasecmp(argv[2]) == "ros2px4") {
+        if (strcasecmp(argv[2], "ros2") == 0 || strcasecmp(argv[2], "ros2px4") == 0 ) {
             rclcpp::shutdown();
         }
 #endif

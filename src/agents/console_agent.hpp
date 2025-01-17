@@ -87,6 +87,7 @@ private:
         // 4. MocapClient and its callback handlers are constructed
 
         // do your setup work here, like initializing ports, opening lopfiles, etc
+        this->initialized = true;
     }
 
     /*
