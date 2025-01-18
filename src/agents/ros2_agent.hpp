@@ -22,12 +22,6 @@
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "std_msgs/msg/string.hpp"
 
-#ifdef USE_AGENT_ROS2PX4
-#include <chrono>
-#include "px4_msgs/msg/vehicle_odometry.hpp"
-#include "px4_msgs/msg/timesync_status.hpp"
-#endif
-
 class ROS2Agent : public Agent, public rclcpp::Node
 {
 public:
@@ -36,13 +30,8 @@ public:
                                 {"--ros-args",
                                 "--disable-rosout-logs",
                                 "--log-level", "rclcpp:=error"})),
-                    _topics{"/mocap"}
-
-#ifdef USE_AGENT_ROS2PX4
-                    , _px4_topics{"/fmu/in/vehicle_visual_odometry"}
-#endif                    
-    {
-    }
+                    _topics{"/mocap"}                 
+    {}
 
     void banner() override
     {
@@ -50,19 +39,14 @@ public:
 ##  ___  ___  ___   ___  ##
 ## | _ \/ _ \/ __| |_  ) ##
 ## |   / (_) \__ \  / /  ##
-## |_|_\\___/|___/ /___| ##
+## |_|_\\___/|___/ /___| ##                     
 ###########################)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         desc.add_options()
-            ("publish_topics,t", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish on.")
-#ifdef USE_AGENT_ROS2PX4
-            ("px4_ids,p", boost::program_options::value<std::vector<unsigned int> >()->multitoken(), "streaming ids to publish on px4 topics")
-            ("px4_topics,o", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish the px4 msgs on")
-#endif
-        ;
+            ("publish_topics,t", boost::program_options::value<std::vector<std::string> >()->multitoken(), "ROS2 topics to publish on.");
     }
 
     void parse_extra_po(const boost::program_options::variables_map &vm) override
@@ -77,35 +61,6 @@ public:
             for(std::string topic : this->_topics) std::cout << topic << " ";
             std::cout << "}" << std::endl;
         }
-#ifdef USE_AGENT_ROS2PX4
-        if(vm.count("px4_ids"))
-        {
-            this->_px4_streaming_ids = vm["px4_ids"].as<std::vector<unsigned int>>();
-            std::cout << "PX4 streaming IDs set to";
-            for(unsigned int id : this->_px4_streaming_ids) std::cout << " " << id << " ";
-            std::cout << std::endl;
-        }
-        else
-        {   
-            // By default we take the first streaming id
-            this->_px4_streaming_ids.push_back(this->getStreamingIds().at(0));
-
-            std::cout << "PX4 Streaming IDs not set, defaulting to";
-            for(unsigned int id : this->_px4_streaming_ids) std::cout << " " << id << " ";
-            std::cout << std::endl;
-        }
-
-        if (vm.count("px4_topics")) {
-            this->_px4_topics  = vm["px4_topics"].as<std::vector<std::string> >();
-            std::cout << "PX4 publishing topics: {";
-            for(std::string topic : this->_px4_topics) std::cout << " " << topic;
-            std::cout << " }" << std::endl;
-        } else {
-            std::cout << "No PX4 Topics specified, Defaulting to: {";
-            for(std::string topic : this->_px4_topics) std::cout << " " << topic;
-            std::cout << " }" << std::endl;
-        }
-#endif
     }
 
     void pre_start() override
@@ -121,20 +76,6 @@ public:
             this->_pose_publishers.push_back(this->create_publisher<geometry_msgs::msg::PoseStamped>((this->_topics.at(i) + ("/pose")).c_str(), 10));
             this->_twist_publishers.push_back(this->create_publisher<geometry_msgs::msg::TwistStamped>((this->_topics.at(i) + ("/twist")).c_str(), 10));
         } 
-
-#ifdef USE_AGENT_ROS2PX4
-
-        if(this->_px4_topics.size() != this->_px4_streaming_ids.size())
-        {
-            std::cerr << "Number of px4 topics does not match number of px4 streaming ids. Exiting." << std::endl;
-            std::raise(SIGINT);
-        }
-        for(unsigned int i = 0; i < this->_px4_topics.size(); i++)
-        {
-            this->_px4_publishers.push_back(this->create_publisher<px4_msgs::msg::VehicleOdometry>(this->_px4_topics.at(i), 10));
-        }
-        this->_timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", rclcpp::SensorDataQoS(), std::bind(&ROS2Agent::_timesync_callback, this, std::placeholders::_1));
-#endif
         this->initialized = true;
     }
 
@@ -181,12 +122,12 @@ public:
          * that should be published on a px4 topic */
         if(std::find(this->_px4_streaming_ids.begin(),
                         this->_px4_streaming_ids.end(),
-                        streaming_ids.at(i)) != this->_px4_streaming_ids.end())
+                        streaming_ids.at(idx)) != this->_px4_streaming_ids.end())
         {
             px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
 
             // Timestamp since system start (px4) in microseconds
-            px4_vehicle_odometry.timestamp = this->_timestamp_remote + (stamp - this->_timestamp_local).nanoseconds() * 1e-3;
+            px4_vehicle_odometry.timestamp = stamp.nanoseconds() * 1e-3;
             px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
 
             // Frame definition
@@ -194,8 +135,8 @@ public:
 
             // Pose and Twist
             /* First transform to NED */
-            pose = this->toNED(pose);
-            twist = this->toNED(twist);
+            //pose = this->toNED(pose);
+            //twist = this->toNED(twist);
 
             /* Then store */
             px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
@@ -204,7 +145,7 @@ public:
             px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
 
             // Publish
-            this->_px4_publishers.at(i)->publish(px4_vehicle_odometry);
+            this->_px4_publishers.at(idx)->publish(px4_vehicle_odometry);
         }
         #endif
 
@@ -219,77 +160,6 @@ private:
     std::vector<std::string> _topics;
     std::vector<rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr> _pose_publishers;
     std::vector<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr> _twist_publishers;
-
-#ifdef USE_AGENT_ROS2PX4
-    std::vector<rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr> _px4_publishers;
-    rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr _timesync_sub;
-
-    std::atomic<uint64_t> _timestamp_remote;
-    rclcpp::Time _timestamp_local;
-
-    std::vector<std::string> _px4_topics;
-    std::vector<unsigned int> _px4_streaming_ids;
-
-    //Callback function
-    void _timesync_callback(const px4_msgs::msg::TimesyncStatus::SharedPtr msg)
-    {
-        this->_timestamp_local = rclcpp::Clock(RCL_SYSTEM_TIME).now();
-        this->_timestamp_remote.store(msg->timestamp);
-    }
-
-    pose_t toNED(const pose_t pose) const
-    {
-        pose_t result = pose;
-
-        switch(this->getCO())
-        {
-            case CoordinateSystem::ENU:
-                result.x = pose.y;
-                result.y = pose.x;
-                result.z = -pose.z;
-
-                result.qw = pose.qw;
-                result.qx = pose.qy;
-                result.qy = pose.qx;
-                result.qz = -pose.qz;
-                break;
-            case CoordinateSystem::NED:
-                // We do nothing because this is what we want to have
-                break;
-            default:
-                break;
-        }
-
-        return result;
-    }
-
-    twist_t toNED(const twist_t twist) const
-    {
-        twist_t result = twist;
-
-        switch(this->getCO())
-        {
-            case CoordinateSystem::ENU:
-                result.x = twist.vy;
-                result.y = twist.vx;
-                result.z = -twist.vz;
-
-                result.wx = twist.wy;
-                result.wy = twist.wx;
-                result.wz = -twist.wz;
-                break;
-            case CoordinateSystem::NED:
-                // We do nothing because this is what we want to have
-                break;
-            default:
-                break;
-        }
-
-        return result;
-    }
-
-#endif
-
 };
 
 #endif //ROS2_AGENT_HPP
