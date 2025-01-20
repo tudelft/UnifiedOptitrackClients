@@ -13,17 +13,17 @@
 // You should have received a copy of the GNU General Public License along
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef PX4_AGENT_HPP
-#define PX4_AGENT_HPP
+#ifndef ROS2PX4_AGENT_HPP
+#define ROS2PX4_AGENT_HPP
 
 #include "agent.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "px4_msgs/msg/vehicle_odometry.hpp"
 
-class PX4Agent : public Agent, public rclcpp::Node
+class ROS2PX4Agent : public Agent, public rclcpp::Node
 {
 public:
-    PX4Agent() : Node("mocap_publisher",
+    ROS2PX4Agent() : Node("mocap_publisher",
                          rclcpp::NodeOptions().arguments(
                                 {"--ros-args",
                                 "--disable-rosout-logs",
@@ -124,4 +124,4 @@ private:
 
 };
 
-#endif //PX4_AGENT_HPP
+#endif //ROS2PX4_AGENT_HPP

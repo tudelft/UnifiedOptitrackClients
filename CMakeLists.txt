@@ -23,7 +23,7 @@ add_executable(client ${SOURCES})
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
 set(ALL_MOCAPS "test;optitrack;qualisys")
-set(ALL_AGENTS "console;ivy;udp;log;mavlink;ros2;px4")
+set(ALL_AGENTS "console;ivy;udp;log;mavlink;ros2;ros2px4")
 
 # process arguments: use all mocaps/agents if unset
 if(NOT DEFINED MOCAPS)
@@ -159,7 +159,7 @@ if ("ros2" IN_LIST AGENTS)
     ament_target_dependencies(client rclcpp geometry_msgs)
 endif()
 
-if ("px4" IN_LIST AGENTS)
+if ("ros2px4" IN_LIST AGENTS)
     include(FetchContent)
     # px4msgs is BSD 3 clause licensed
     FetchContent_Declare(

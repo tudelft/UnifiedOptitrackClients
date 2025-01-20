@@ -59,8 +59,8 @@
     #include "rclcpp/rclcpp.hpp"
 #endif
 
-#ifdef USE_AGENT_PX4
-    #include "px4_agent.hpp"
+#ifdef USE_AGENT_ROS2PX4
+    #include "ros2px4_agent.hpp"
     #include "rclcpp/rclcpp.hpp"
 #endif
 
@@ -102,8 +102,8 @@ static void print_usage(char const *prog_name) {
 #ifdef USE_AGENT_ROS2
     printf("ros2 ");
 #endif
-#ifdef USE_AGENT_PX4
-    printf("px4 ");
+#ifdef USE_AGENT_ROS2PX4
+    printf("ros2px4 ");
 #endif
     printf("\n");
 }
@@ -176,8 +176,8 @@ int main(int argc, char const *argv[])
         agent = new ROS2Agent();
     } else
 #endif
-#ifdef USE_AGENT_PX4
-    if (strcasecmp(argv[2], "px4") == 0) {
+#ifdef USE_AGENT_ROS2PX4
+    if (strcasecmp(argv[2], "ros2px4") == 0) {
         // Init ROS2
         rclcpp::init(argc-2, argv+2);
 
@@ -185,7 +185,7 @@ int main(int argc, char const *argv[])
         rclcpp::get_logger("rclcpp").set_level(rclcpp::Logger::Level::Error);
 
         // Init agent
-        agent = new PX4Agent();
+        agent = new ROS2PX4Agent();
     } else
 #endif
     {
@@ -200,8 +200,8 @@ int main(int argc, char const *argv[])
     shutdown_handler = [p, argv](int signum)
     { 
         std::cout << "Shutting down... Done. " << std::endl;
-#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_PX4)  
-        if (strcasecmp(argv[2], "ros2") == 0 || strcasecmp(argv[2], "px4") == 0 ) {
+#if defined(USE_AGENT_ROS2) || defined(USE_AGENT_ROS2PX4)  
+        if (strcasecmp(argv[2], "ros2") == 0 || strcasecmp(argv[2], "ros2px4") == 0 ) {
             rclcpp::shutdown();
         }
 #endif

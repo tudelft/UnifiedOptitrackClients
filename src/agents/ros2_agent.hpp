@@ -117,38 +117,6 @@ public:
         twist_msg.twist.angular.y = twist.wy;
         twist_msg.twist.angular.z = twist.wz;
 
-        #ifdef USE_AGENT_ROS2PX4
-        /* If the current object is also in the list of ids
-         * that should be published on a px4 topic */
-        if(std::find(this->_px4_streaming_ids.begin(),
-                        this->_px4_streaming_ids.end(),
-                        streaming_ids.at(idx)) != this->_px4_streaming_ids.end())
-        {
-            px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
-
-            // Timestamp since system start (px4) in microseconds
-            px4_vehicle_odometry.timestamp = stamp.nanoseconds() * 1e-3;
-            px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
-
-            // Frame definition
-            px4_vehicle_odometry.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_NED;
-
-            // Pose and Twist
-            /* First transform to NED */
-            //pose = this->toNED(pose);
-            //twist = this->toNED(twist);
-
-            /* Then store */
-            px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
-            px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
-            px4_vehicle_odometry.velocity = {twist.vx, twist.vy, twist.vz};
-            px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
-
-            // Publish
-            this->_px4_publishers.at(idx)->publish(px4_vehicle_odometry);
-        }
-        #endif
-
         // Finally publish
         this->_pose_publishers.at(idx)->publish(pose_msg);
         this->_twist_publishers.at(idx)->publish(twist_msg);
