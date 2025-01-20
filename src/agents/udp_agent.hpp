@@ -76,18 +76,18 @@ public:
             this->_port = 5005;
         }
 
-        //if (this->getStreamingIds().size() > 1) {
-        //    std::cout << "Number of streaming_ids and ac_ids must be equal to 1 for the udp client. Multiple not (yet) supported"
-        //        << std::endl;
-        //    std::raise(SIGINT);
-        //}
+        if (this->streaming_ids.size() > 1) {
+            std::cout << "Number of streaming_ids and ac_ids must be equal to 1 for the udp client. Multiple not (yet) supported"
+                << std::endl;
+            std::raise(SIGINT);
+        }
 
         if(vm.count("ac_id")) {
             this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
-            //if ( this->_ac_id.size() != this->getStreamingIds().size() ) {
-            //    std::cout << "Number of ac_ids must be equal to streaming_ids" << std::endl;
-            //    std::raise(SIGINT);
-            //}
+            if ( this->_ac_id.size() != this->streaming_ids.size() ) {
+                std::cout << "Number of ac_ids must be equal to streaming_ids" << std::endl;
+                std::raise(SIGINT);
+            }
             std::cout << "AC IDs set to";
             for(unsigned int id : this->_ac_id) std::cout << " " << id << " ";
             std::cout << std::endl;

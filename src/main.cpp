@@ -46,6 +46,10 @@
     #include "udp_agent.hpp"
 #endif
 
+#ifdef USE_AGENT_MAVLINK
+    #include "mavlink_agent.hpp"
+#endif
+
 #ifdef USE_AGENT_LOG
     #include "log_agent.hpp"
 #endif
@@ -91,6 +95,9 @@ static void print_usage(char const *prog_name) {
 #endif
 #ifdef USE_AGENT_UDP
     printf("udp ");
+#endif
+#ifdef USE_AGENT_MAVLINK
+    printf("mavlink ");
 #endif
 #ifdef USE_AGENT_ROS2
     printf("ros2 ");
@@ -145,6 +152,11 @@ int main(int argc, char const *argv[])
 #ifdef USE_AGENT_UDP
     if (strcasecmp(argv[2], "udp") == 0) {
         agent = new UdpAgent();
+    } else 
+#endif
+#ifdef USE_AGENT_MAVLINK
+    if (strcasecmp(argv[2], "mavlink") == 0) {
+        agent = new MavlinkAgent();
     } else 
 #endif
 #ifdef USE_AGENT_LOG

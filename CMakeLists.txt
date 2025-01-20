@@ -23,7 +23,7 @@ add_executable(client ${SOURCES})
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
 set(ALL_MOCAPS "test;optitrack;qualisys")
-set(ALL_AGENTS "console;ivy;udp;log;ros2;px4")
+set(ALL_AGENTS "console;ivy;udp;log;mavlink;ros2;px4")
 
 # process arguments: use all mocaps/agents if unset
 if(NOT DEFINED MOCAPS)
@@ -133,6 +133,22 @@ endif()
 
 if ("udp" IN_LIST AGENTS)
     find_package(Boost REQUIRED COMPONENTS system)
+endif()
+
+if ("mavlink" IN_LIST AGENTS)
+    include(ExternalProject)
+    ExternalProject_Add(mavlink
+        GIT_REPOSITORY https://github.com/mavlink/mavlink
+        GIT_TAG 23eb98ca00032a7edc8b6ff1eb8914ec27c7b268
+        GIT_SUBMODULES_RECURSE TRUE
+        CMAKE_ARGS -H. -DCMAKE_INSTALL_PREFIX=install -DMAVLINK_DIALECT=common -DMAVLINK_VERSION=2.0
+        INSTALL_COMMAND cmake --build . --target install
+    )
+
+    add_dependencies(client mavlink)
+    # silence lots of warnings
+    target_compile_options(client PRIVATE "-Wno-address-of-packed-member")
+    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/mavlink-prefix/src/mavlink-build/install/include/)
 endif()
 
 if ("ros2" IN_LIST AGENTS)
