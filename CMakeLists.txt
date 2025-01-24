@@ -84,7 +84,7 @@ if ("optitrack" IN_LIST MOCAPS)
     include(FetchContent)
     fetchcontent_declare(natnet_sdk_content
       URL https://s3.amazonaws.com/naturalpoint/software/NatNetSDKLinux/ubuntu/NatNet_SDK_4.1_ubuntu.tar
-      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+      #DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     )
     fetchcontent_makeavailable(natnet_sdk_content)
 
