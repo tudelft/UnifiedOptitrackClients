@@ -32,6 +32,7 @@ private:
 protected:
     unsigned int publish_every;
     float publish_frequency;
+    float publish_duration;
     CoordinateSystem csys;
     float true_north_rad;
     float time_offset;

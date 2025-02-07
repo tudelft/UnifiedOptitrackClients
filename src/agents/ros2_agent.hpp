@@ -81,6 +81,13 @@ public:
 
     bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
+        // Update the publishing duration to more closely achieve the desired publishing frequency        
+        uint64_t t = rclcpp::Clock(RCL_STEADY_TIME).now().nanoseconds();
+        if (this->_last_timestamp != 0) {
+            this->publish_duration += 0.1 * (1.f / this->publish_frequency - 1e-9 * (t - this->_last_timestamp));
+        }
+        this->_last_timestamp = t;
+    
         // Init Message
         geometry_msgs::msg::PoseStamped pose_msg{};
         geometry_msgs::msg::TwistStamped twist_msg{};
@@ -128,6 +135,8 @@ private:
     std::vector<std::string> _topics;
     std::vector<rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr> _pose_publishers;
     std::vector<rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr> _twist_publishers;
+
+    uint64_t _last_timestamp;
 };
 
 #endif //ROS2_AGENT_HPP

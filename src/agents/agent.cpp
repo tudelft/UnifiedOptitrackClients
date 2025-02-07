@@ -16,7 +16,7 @@
 #include "agent.hpp"
 #include "pose_calculations.hpp"
 
-Agent::Agent() : printMessages{false}, publish_every{1}, csys{CoordinateSystem::NED}
+Agent::Agent() : printMessages{false}, publish_every{1}, csys{CoordinateSystem::NED}, publish_duration{0}
 {
 }
 
@@ -67,7 +67,10 @@ void Agent::new_data_available( std::vector<RigidBody>& RBs ) {
             && (RBs[i].getNumUnpublishedSamples() >= this->publish_every);
         bool hasUnpublishedSample = ( RBs[i].getNumUnpublishedSamples() > 0 );
         bool frequencyReady = ( this->publish_frequency > 0.f )  // true if frequency cli argument was passed
-            && ( (RBs[i].getLatestSampleTime() - RBs[i].getLastPublishedSampleTime()) >= ((uint64_t) 1e6*(1.f / this->publish_frequency)) );
+            && ( (RBs[i].getLatestSampleTime() - RBs[i].getLastPublishedSampleTime()) 
+                // Subtract the publishing duration to more closely achieve the desired publishing duration.
+                // Needs to be set in the respective agent. 
+                  >= ((uint64_t) 1e6*(1.f / this->publish_frequency + this->publish_duration)) );
 
         if (divisorReady || (hasUnpublishedSample && frequencyReady)) {
             pose_t pose = RBs[i].getPoseIn( this->csys, this->true_north_rad );
