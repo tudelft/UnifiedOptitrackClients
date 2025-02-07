@@ -35,6 +35,8 @@
 #include <NatNetClient.h>
 #include <NatNetRequests.h>
 
+namespace po = boost::program_options;
+
 enum UpAxis { NOTDETECTED=-1, X=0, Y, Z };
 
 std::ostream& operator<<(std::ostream& lhs, ErrorCode e) {
@@ -268,6 +270,11 @@ public:
         return ErrorCode_OK;
     }
 
+    void set_time_offset(uint64_t cam_time) override 
+    {
+        this->agent->set_time_offset(this->pClient->SecondsSinceHostTimestamp(cam_time));
+    }
+
     void data_handler(sFrameOfMocapData* data)
     {
         // get timestamp
@@ -280,7 +287,7 @@ public:
 
             RigidBody* theRb = nullptr;
             for (auto& rb : this->RBs) {
-                if (rb.id == rb_id) {
+                if (rb.streaming_id == rb_id) {
                     theRb = &rb;
                     break;
                 }
@@ -421,7 +428,7 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {
     that->data_handler(data);
 
     // Update time delay to agent
-    that->agent->set_time_offset(that->pClient->SecondsSinceHostTimestamp(data->CameraMidExposureTimestamp));
+    that->set_time_offset(data->CameraMidExposureTimestamp);
 };
 
 #endif // H_OPTITRACK_MOCAP

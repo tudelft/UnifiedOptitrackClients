@@ -52,5 +52,7 @@ int Mocap::connect()
     return 1;
 }
 
-
+void Mocap::set_time_offset(uint64_t cam_time)
+{
+}
 
