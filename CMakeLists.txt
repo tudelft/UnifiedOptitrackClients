@@ -166,21 +166,45 @@ if ("ros2" IN_LIST AGENTS)
 endif()
 
 if ("ros2px4" IN_LIST AGENTS)
+
+    # General ROS 2 dependencies
+    find_package(ament_cmake REQUIRED)
+    find_package(rclcpp REQUIRED)
+    ament_target_dependencies(client rclcpp)
+
+    # Specific PX4 msgs dependencies
     include(FetchContent)
     # px4msgs is BSD 3 clause licensed
+    # Fetch the px4_msgs repo, but only the required message
     FetchContent_Declare(
       px4_msgs
       GIT_REPOSITORY https://github.com/PX4/px4_msgs
-      GIT_TAG release/1.14
+      GIT_TAG release/1.15
+      DOWNLOAD_COMMAND
+        git clone --filter=blob:none --no-checkout --depth 1 --branch release/1.15 https://github.com/PX4/px4_msgs ${FETCHCONTENT_BASE_DIR}/px4_msgs-src &&
+        cd ${FETCHCONTENT_BASE_DIR}/px4_msgs-src &&
+        git sparse-checkout init --cone &&
+        git sparse-checkout set --no-cone CMakeLists.txt package.xml msg/VehicleOdometry.msg &&
+        git checkout
     )
     FetchContent_MakeAvailable(px4_msgs)
-
-    find_package(ament_cmake REQUIRED)
-    find_package(rclcpp REQUIRED)
-    find_package(geometry_msgs REQUIRED)
-
+    # Add the dependency to make sure it is compiled
     add_dependencies(client px4_msgs)
-    ament_target_dependencies(client rclcpp geometry_msgs)
-    target_link_libraries(client ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/libpx4_msgs__rosidl_typesupport_cpp.so)
-    target_include_directories(client PUBLIC ./build/_deps/px4_msgs-build/rosidl_generator_cpp)
+
+    # Add the libraries
+    add_library(px4_msgs_typesupport SHARED IMPORTED)
+    set_target_properties(px4_msgs_typesupport PROPERTIES IMPORTED_LOCATION 
+        ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/libpx4_msgs__rosidl_typesupport_cpp.so
+    )
+    add_library(px4_msgs_fastrtps SHARED IMPORTED)
+    set_target_properties(px4_msgs_fastrtps PROPERTIES IMPORTED_LOCATION 
+        ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/libpx4_msgs__rosidl_typesupport_fastrtps_cpp.so
+    )
+    # Link them to the target
+    target_link_libraries(client
+        px4_msgs_typesupport
+        px4_msgs_fastrtps
+    )
+    # Finally also define the include directories
+    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/rosidl_generator_cpp)
 endif()
