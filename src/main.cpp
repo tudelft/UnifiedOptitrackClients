@@ -73,13 +73,13 @@ static void print_usage(char const *prog_name) {
     printf("Usage: %s MOCAP AGENT [-h|--help] [options]\n\n", prog_name);
     printf("Available MOCAPs: ");
 #ifdef USE_MOCAP_TEST
-    printf("test");
+    printf("test ");
 #endif
 #ifdef USE_MOCAP_OPTITRACK
-    printf("optitrack");
+    printf("optitrack ");
 #endif
 #ifdef USE_MOCAP_QUALISYS
-    printf("qualisys");
+    printf("qualisys ");
 #endif
     printf("\n");
 

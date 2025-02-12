@@ -26,28 +26,32 @@ set(ALL_MOCAPS "test;optitrack;qualisys")
 set(ALL_AGENTS "console;ivy;udp;log;mavlink;ros2;ros2px4")
 
 # process arguments: use all mocaps/agents if unset
-if(NOT DEFINED MOCAPS)
+if(DEFINED MOCAPS)
+    list(TRANSFORM MOCAPS STRIP)
+else()
     message(STATUS "MOCAPS is not set. Continuing with all mocaps")
     set(MOCAPS ${ALL_MOCAPS} CACHE STRING "Mocaps to build into the binary")
-endif(NOT DEFINED MOCAPS)
+endif(DEFINED MOCAPS)
 
 foreach(x ${MOCAPS})
-    string(REPLACE " " "" stripped "${x}")
-
-    list(FIND ALL_MOCAPS ${stripped} index)
+    list(FIND ALL_MOCAPS ${x} index)
     if(index EQUAL -1)
         message(FATAL_ERROR "Mocap ${x} not in supported agent list: ${ALL_MOCAPS}")
     endif()
 
-    string(TOUPPER ${stripped} uppercase)
+    string(TOUPPER ${x} uppercase)
     add_definitions(-DUSE_MOCAP_${uppercase})
 endforeach()
 
+message(STATUS "Building MOCAPS: ${MOCAPS}")
 
-if(NOT DEFINED AGENTS)
+
+if(DEFINED AGENTS)
+    list(TRANSFORM AGENTS STRIP)
+else()
     message(STATUS "AGENTS is not set. Continuing with all agents")
     set(AGENTS ${ALL_AGENTS} CACHE STRING "Agents to build into the binary")
-endif(NOT DEFINED AGENTS)
+endif(DEFINED AGENTS)
 
 foreach(x ${AGENTS})
     string(REPLACE " " "" stripped "${x}")
@@ -60,6 +64,8 @@ foreach(x ${AGENTS})
     string(TOUPPER ${stripped} uppercase)
     add_definitions(-DUSE_AGENT_${uppercase})
 endforeach()
+
+message(STATUS "Building AGENTS: ${AGENTS}")
 
 
 include_directories(include)
