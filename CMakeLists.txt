@@ -181,11 +181,8 @@ if ("ros2px4" IN_LIST AGENTS)
       GIT_REPOSITORY https://github.com/PX4/px4_msgs
       GIT_TAG release/1.15
       DOWNLOAD_COMMAND
-        git clone --filter=blob:none --no-checkout --depth 1 --branch release/1.15 https://github.com/PX4/px4_msgs ${FETCHCONTENT_BASE_DIR}/px4_msgs-src &&
-        cd ${FETCHCONTENT_BASE_DIR}/px4_msgs-src &&
-        git sparse-checkout init --cone &&
-        git sparse-checkout set --no-cone CMakeLists.txt package.xml msg/VehicleOdometry.msg &&
-        git checkout
+        git clone --no-checkout --branch release/1.15 https://github.com/PX4/px4_msgs ${FETCHCONTENT_BASE_DIR}/px4_msgs-src &&
+        git -C ${FETCHCONTENT_BASE_DIR}/px4_msgs-src checkout HEAD CMakeLists.txt package.xml msg/VehicleOdometry.msg
     )
     FetchContent_MakeAvailable(px4_msgs)
     # Add the dependency to make sure it is compiled
