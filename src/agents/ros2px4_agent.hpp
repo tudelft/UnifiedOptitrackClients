@@ -81,36 +81,36 @@ public:
 
     bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
-        /* If the current object is also in the list of ids
-         * that should be published on a px4 topic */
-        if(std::find(this->_px4_streaming_ids.begin(),
-                        this->_px4_streaming_ids.end(),
-                        streaming_ids.at(idx)) != this->_px4_streaming_ids.end())
-        {
-            px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
-
-            // Transform the pose timestamp to unix time
-            double seconds = this->time_offset;
-            uint32_t seconds_t = static_cast<int32_t>(seconds);
-            uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
-            rclcpp::Time stamp = (rclcpp::Clock(RCL_SYSTEM_TIME).now() - rclcpp::Duration(seconds_t, nanoseconds_t));
-
-            // Timestamp since system start (px4) in microseconds
-            px4_vehicle_odometry.timestamp = stamp.nanoseconds() * 1e-3;
-            px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
-
-            // Frame definition
-            px4_vehicle_odometry.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_NED;
-
-            /* Then store */
-            px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
-            px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
-            px4_vehicle_odometry.velocity = {twist.vx, twist.vy, twist.vz};
-            px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
-
-            // Publish
-            this->_px4_publishers.at(idx)->publish(px4_vehicle_odometry);
+        // Update the publishing duration to more closely achieve the desired publishing frequency
+        uint64_t t = rclcpp::Clock(RCL_STEADY_TIME).now().nanoseconds();
+        if (this->_last_timestamp != 0) {
+            this->publish_duration += 0.1 * (1.f / this->publish_frequency - 1e-9 * (t - this->_last_timestamp));
         }
+        this->_last_timestamp = t;
+
+        px4_msgs::msg::VehicleOdometry px4_vehicle_odometry;
+
+        // Transform the pose timestamp to unix time
+        double seconds = this->time_offset;
+        uint32_t seconds_t = static_cast<int32_t>(seconds);
+        uint32_t nanoseconds_t = static_cast<int32_t>((seconds - seconds_t) * 1e9);
+        rclcpp::Time stamp = (rclcpp::Clock(RCL_SYSTEM_TIME).now() - rclcpp::Duration(seconds_t, nanoseconds_t));
+
+        // Timestamp since system start (px4) in microseconds
+        px4_vehicle_odometry.timestamp = stamp.nanoseconds() * 1e-3;
+        px4_vehicle_odometry.timestamp_sample = px4_vehicle_odometry.timestamp;
+
+        // Frame definition
+        px4_vehicle_odometry.pose_frame = px4_msgs::msg::VehicleOdometry::POSE_FRAME_NED;
+
+        /* Then store */
+        px4_vehicle_odometry.position = {pose.x, pose.y, pose.z};
+        px4_vehicle_odometry.q = {pose.qw, pose.qx, pose.qy, pose.qz};
+        px4_vehicle_odometry.velocity = {twist.vx, twist.vy, twist.vz};
+        px4_vehicle_odometry.angular_velocity = {twist.wx, twist.wy, twist.wz};
+
+        // Publish
+        this->_px4_publishers.at(idx)->publish(px4_vehicle_odometry);
 
         return true;
     }
@@ -121,6 +121,8 @@ private:
 
     std::vector<std::string> _px4_topics;
     std::vector<unsigned int> _px4_streaming_ids;
+
+    uint64_t _last_timestamp;
 
 };
 
