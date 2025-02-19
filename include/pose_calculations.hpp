@@ -4,6 +4,7 @@
 #include <iostream>
 #include <csignal>
 #include <cmath>
+#include <cstdint>
 
 typedef struct pose_s {
     uint64_t timeUs;
