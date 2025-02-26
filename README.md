@@ -24,8 +24,8 @@ different robotics systems.
 | `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `./client optitrack ros2 -f 100 -c enu -r far -s 1 -n far`       |
 | `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `./client optitrack ros2px4 -f 100 -c enu -r far -s 1 -n far`                      |
 | `udp`                | Data as a UDP stream                                                                 | `./client optitrack udp -f 100 -c enu -r far -s 1 -n far -i 192.168.209.100 -p 1234`   |
-| `ivy`                | Publish to an IVY bus                                                                   | `./client optitrack ivy -f 100 -c enu -r far -s 1 -n far`     `                     |
-| `console`            | Only to the terminal (if activated)                                                  | `./client test console --test_freq 100 -f 10 -c enu -r far -s 1 -n far`     `                 |
+| `ivy`                | Publish to an IVY bus                                                                   | `./client optitrack ivy -f 100 -c enu -r far -s 1 -n far`                          |
+| `console`            | Only to the terminal (if activated)                                                  | `./client test console --test_freq 100 -f 10 -c enu -r far -s 1 -n far`                      |
 
 ### Currently supported platforms:
 
