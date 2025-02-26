@@ -37,19 +37,25 @@ class LogAgent : public Agent
 public:
     LogAgent() : _logType{LogType::CSV}
     {
+    }
+
+    ~LogAgent()
+    {
+        if (_logFile.is_open()) {
+            _logFile.close();
+        }
+    }
+
+    void banner() override
+    {
+        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
-##  _               #############################################################
+##  _               ##
 ## | |   ___  __ _  ##
 ## | |__/ _ \/ _` | ##
 ## |____\___/\__, | ##
 ##           |___/  ##
-######################
-)" << std::endl;
-    }
-
-    ~LogAgent() {
-        if (_logFile.is_open())
-            _logFile.close();
+######################)" << std::endl;
     }
 
 private:

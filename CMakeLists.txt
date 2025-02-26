@@ -22,8 +22,8 @@ file(GLOB SOURCES "src/*.cpp" "src/agents/*.cpp" "src/common/*.cpp" "src/mocaps/
 add_executable(client ${SOURCES})
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
-set(ALL_MOCAPS "test;optitrack;qualisys")
-set(ALL_AGENTS "console;ivy;udp;mavlink;ros2;ros2px4")
+set(ALL_MOCAPS "optitrack;qualisys;test")
+set(ALL_AGENTS "ivy;udp;mavlink;ros2;ros2px4;console;log")
 
 # process arguments: use all mocaps/agents if unset
 if(DEFINED MOCAPS)
