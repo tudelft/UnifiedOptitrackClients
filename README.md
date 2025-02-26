@@ -15,23 +15,21 @@ different robotics systems.
 
 ### Currently supported motion capture systems:
 * NaturalPoint, Inc. **"OptiTrack"** via its `NatNet SDK`
-
+* Qualisys, vis its `Qualisys CPP SDK`
 
 ### Currently supported agents:
 
 |        Agent        | Means of Publishing                                                                  | Launch Command (Example)               |
 |:--------------------:|--------------------------------------------------------------------------------------|----------------------------------------|
-| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `mocap2ros2 --publish_topic UAV`       |
-| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `mocap2ros2px4 -f 120`                 |
-| `udp`                | Data as a UDP stream                                                                 | `mocap2udp -i 192.168.209.100 -p 1234`   |
-| `ivy`                | Publish to an IVY bus                                                                   | `mocap2ivy -s 123`                     |
-| `console`            | Only to the terminal (if activated)                                                  | `mocap2console -c NED`                 |
-| `log`                | Data directly dumped into a file                                                     | `mocap2log -n myfile.csv`              |
+| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `./client optitrack ros2 -f 100 -c enu -r far -s 1 -n far`       |
+| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `./client optitrack ros2px4 -f 100 -c enu -r far -s 1 -n far`                      |
+| `udp`                | Data as a UDP stream                                                                 | `./client optitrack udp -f 100 -c enu -r far -s 1 -n far -i 192.168.209.100 -p 1234`   |
+| `ivy`                | Publish to an IVY bus                                                                   | `./client optitrack ivy -f 100 -c enu -r far -s 1 -n far`     `                     |
+| `console`            | Only to the terminal (if activated)                                                  | `./client test console --test_freq 100 -f 10 -c enu -r far -s 1 -n far`     `                 |
 
 ### Currently supported platforms:
 
 Ubuntu >= 22.04 on x86
-
 
 ## Building and Running
 
@@ -43,7 +41,7 @@ Prerequisites vary per agent. Currently, these are known:
 |:---------:|------------------------------------------------------------------------------------------|
 | `all`     | `libboost-all-dev` installed with `apt`                                       |
 | `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
-| `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
+| `ros2`    | `ros-$ROS_DISTRO-base`, needs to be sourced for compilation (execute `. scripts/source_ros_and_msgs.sh`)                                   |
 | `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
 
 Build for all agents with:
@@ -55,37 +53,32 @@ cmake .. && make
 Build only for some agents with (for example):
 ```shell
 mkdir build && cd build
-cmake -D'AGENTS=console;ivy;ros2;ros2px4' .. && make
+cmake -D'MOCAPS=test;optitrack' -D'AGENTS=console;ivy;ros2;ros2px4' .. && make
 ```
 
 Run with (see table at beginning on this readme)
 ```shell
-./mocap2console --help
+./client --help
 ```
 
-### Alternative: Build and run using Docker
-
-Each agent has its own `dockerfile` to make compilation across platforms easier. For this first install docker as is explained on the official [website](https://docs.docker.com/engine/install).
-
-Then you can build your docker image using e.g., 
-
-    docker build -t consoleagent . -f ./dockerfiles/console.dockerfile 
-
-Where `-t` defines the name of the docker image and `-f` defines the file path to the `dockerfile`.
-Afterward, you can run the docker image with:
-
-    docker run -it --rm --net host consoleagent cmdline args of your choice
-
-When running the logging agent with docker you have to mount a volume such that the written file will persist on the host machine. 
-The agent expects the volume to be mounted under `/data`, i.e. the command would be something like to save the data in the current directory:
-
-    docker run -it --net=host -v ./:/data logagent -s 1 -o data.csv
-
-
-How to write your own client?
+How to write your own agent?
 ==============================
 
-* 2024-08-27 -- 1.0.0 -- First Release
+To add support for your own agent it has to inheret from the base class `Agent` defined in `agent.hpp` and needs to implement the 
+
+    void publish_data()
+function. It _can_ also implement 
+
+    void add_extra_po(boost::program_options::options_description &desc)
+    void parse_extra_po(const boost::program_options::variables_map &vm)
+Afterward, the agent needs to be added to the `CMakeList.txt` file. A simple example of how to do this is the `ConsoleAgent` defined in `agents/console_agent.hpp`.
+
+## How to add support for a different Motion Capture System?
+
+Please open an Issue and we'll support you!
+
+
+* 2025-02-28 -- 1.1.0 -- Second Release
 
 ## Authors
 
@@ -95,8 +88,7 @@ How to write your own client?
 ## Structure
 ```
 .
-├── agents          # contains the agent definitions
-├── dockerfiles      # contains dockerfiles to build for each agent
+├── agents           # contains the agent definitions
 ├── include          # headers
 ├── scripts          # utility scripts
 ├── src              # implementation of data receiving and pose calculations
@@ -117,29 +109,3 @@ written by the Author(s).
 Henri Werij, Dean of the Faculty of Aerospace Engineering
 
 © 2024, Anton Bredenbeck, Till Blaha
-
-
-## How to add support for a different agent?
-
-To add support for your own agent it has to inheret from the base class `UnifiedMocapClient` defined in `unified_mocap_client.hpp` and needs to implement the 
-
-    void publish_data()
-function. It _can_ also implement 
-
-    void add_extra_po(boost::program_options::options_description &desc)
-    void parse_extra_po(const boost::program_options::variables_map &vm)
-Afterward, the agent needs to be added to the `CMakeList.txt` file and added to the main executable `main.cpp` using compile options. A simple example of how to do this is the `ConsoleAgent` defined in `agents/console_agent.hpp`.
-
-## How to add support for a different Motion Capture System?
-
-Please open an Issue and we'll support you!
-
-
-# FAQ
-
-ROS: source workspace and import libraries
-
-```
-source /opt/ros/humble/setup.bash
-export LD_LIBRARY_PATH=../build/_deps/px4_msgs-build:${LD_LIBRARY_PATH}
-```
