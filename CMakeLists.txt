@@ -23,7 +23,7 @@ add_executable(client ${SOURCES})
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
 set(ALL_MOCAPS "test;optitrack;qualisys")
-set(ALL_AGENTS "console;ivy;udp;log;mavlink;ros2;ros2px4")
+set(ALL_AGENTS "console;ivy;udp;mavlink;ros2;ros2px4")
 
 # process arguments: use all mocaps/agents if unset
 if(DEFINED MOCAPS)
@@ -183,6 +183,11 @@ if ("ros2px4" IN_LIST AGENTS)
       DOWNLOAD_COMMAND
         git clone --no-checkout --branch release/1.15 https://github.com/PX4/px4_msgs ${FETCHCONTENT_BASE_DIR}/px4_msgs-src &&
         git -C ${FETCHCONTENT_BASE_DIR}/px4_msgs-src checkout HEAD CMakeLists.txt package.xml msg/VehicleOdometry.msg
+      CMAKE_ARGS
+        -DBUILD_TESTING=OFF
+        -DTHIRDPARTY=ON
+        -DPYTHON_EXECUTABLE=""
+        -DPYTHON_BINDINGS=OFF
     )
     FetchContent_MakeAvailable(px4_msgs)
     # Add the dependency to make sure it is compiled
