@@ -68,7 +68,7 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData);
 class OptiTrackMocap : public Mocap
 {
 public:
-    OptiTrackMocap() : publish_dt{0.01f}
+    OptiTrackMocap()
     {
         // setup work, but as little as possible
         this->pClient = new NatNetClient();
@@ -228,21 +228,6 @@ public:
                 << std::endl;
             return ErrorCode::ErrorCode_External;
         }
-
-        // detect frame rate
-        //std::cout<<"Detecting frame rate... ";
-        //ret = this->pClient->SendMessageAndWait("FrameRate", &response, &nBytes);
-        //if (ret == ErrorCode_OK) {
-        //    this->fSample = (double) *((float*)response);
-        //    std::cout << this->fSample << "Hz";
-        //    if (this->fSample < (1.0 / this->publish_dt))
-        //        std::cout << " WARNING: Publish frequency was set higher which has no effect: incomming messages will only be published once.";
-
-        //    std::cout << std::endl;
-        //} else {
-        //    std::cout << "Error code " << ret << std::endl;
-        //    return ret;
-        //}
 
         // detect up axis
         std::cout<<"Detecting up axis... ";
@@ -420,7 +405,6 @@ private:
     UpAxis up_axis;
     CoordinateSystem co;
     ArenaDirection long_edge;
-    float publish_dt;
 };
 
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* data, void* pUserData) {

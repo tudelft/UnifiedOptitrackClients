@@ -103,9 +103,11 @@ private:
     std::string server_addr;
     unsigned short int base_port;
     unsigned short int stream_port;
+    ArenaDirection long_edge;
+
     bool bigEndian;
     CRTProtocol rtProtocol;
-    
+
     std::thread receiverThread;
     bool shouldStop;
 
@@ -142,6 +144,7 @@ public:
             ("mocap_ip", boost::program_options::value<std::string>(), "QTM IP.")
             ("mocap_base_port", boost::program_options::value<unsigned short int>(), "QTM TCP base port.")
             ("mocap_stream_port", boost::program_options::value<unsigned short int>(), "Arbitrary UDP port 1024-65535 for streaming.")
+            ("long_edge,l", po::value<std::string>(), "direction of long edge during Motive ground-plane calibration [right, far, left, near]")
             ;
     }
 
@@ -172,6 +175,44 @@ public:
         } else {
             std::cout << "No QTM udp port given. Assume 12345" << std::endl;
             this->stream_port = 12345;
+        }
+
+        if(vm.count("long_edge"))
+        {
+            //if (this->co == CoordinateSystem::UNCHANGED) {
+            //    std::cout << "Can only specify --long_edge/-l when coordinate system is not UNCHANGED. Exiting" << std::endl;
+            //    std::raise(SIGINT);
+            //}
+            std::string le = vm["long_edge"].as<std::string>();
+            boost::algorithm::to_lower(le);
+
+            if(le.compare("right") == 0)
+            {
+                this->long_edge = ArenaDirection::RIGHT;
+            }
+            else if(le.compare("far") == 0)
+            {
+                this->long_edge = ArenaDirection::FAR;
+            }
+            else if (le.compare("left") == 0)
+            {
+                this->long_edge = ArenaDirection::LEFT;
+            }
+            else if (le.compare("near") == 0)
+            {
+                this->long_edge = ArenaDirection::NEAR;
+            }
+            else
+            {
+                std::cout << "Long Edge Direction " << le << " not definied. Exiting" << std::endl;
+                std::raise(SIGINT);
+            }
+            std::cout << "Long Edge direction set to " << this->long_edge << std::endl;
+        }
+        else
+        {
+            std::cout << "Long Edge direction not set, defaulting to "
+                      << this->long_edge << std::endl;
         }
     }
 
@@ -241,16 +282,15 @@ public:
                         {
                             const char* pTmpStr = rtProtocol.Get6DOFBodyName(i);
                             RigidBody* theRb = nullptr;
-                            if (pTmpStr) {
-                                for (auto& rb : this->RBs) {
-                                    if (strcmp(pTmpStr, rb.name.c_str()) == 0) {
-                                        theRb = &rb;
-                                        break;
-                                    }
-                                }
-                            } else {
-                                // untracked
+                            if (!pTmpStr) {
                                 continue;
+                            }
+
+                            for (auto& rb : this->RBs) {
+                                if (strcmp(pTmpStr, rb.streaming_name.c_str()) == 0) {
+                                    theRb = &rb;
+                                    break;
+                                }
                             }
 
                             if (!theRb) {
@@ -263,7 +303,6 @@ public:
 
                             anyTracked = true;
 
-                            // TODO: check rotation matrix transpose
                             quaternion_t quat;
                             rotationMatrix_t rotM = { .m = {
                                     { rmatVec[0], rmatVec[3], rmatVec[6] },
@@ -273,15 +312,48 @@ public:
 
                             quaternion_of_rotationMatrix(&quat, &rotM);
 
-                            pose_t newPose {
+                            pose_t newPoseENU_longEdgeEast = {
                                 markerTimeUs,
                                 .x = 1e-3f * fX, .y = 1e-3f * fY, .z = 1e-3f * fZ,
                                 .qx = quat.x, .qy = quat.y, .qz = quat.z, .qw = quat.w
                             };
 
-                            // TODO; convert transform
+                            pose_t newPoseENU_northFarSide = newPoseENU_longEdgeEast;
 
-                            theRb->setNewPoseENU_NorthFarSide( newPose );
+                            // https://docs.qualisys.com/getting-started/content/8_calibration_series/8a_how_to_calibrate/setting_the_origin_point.htm
+                            // long edge means x to the right
+                            switch(this->long_edge)
+                            {
+                                case ArenaDirection::RIGHT:
+                                    // We do nothing because this is what we want to have
+                                    break;
+                                case ArenaDirection::FAR:
+                                    // Rotate to align in the yaw plane
+                                    newPoseENU_northFarSide.y = newPoseENU_longEdgeEast.x;
+                                    newPoseENU_northFarSide.x = -newPoseENU_longEdgeEast.y;
+
+                                    newPoseENU_northFarSide.qy = newPoseENU_longEdgeEast.qx;
+                                    newPoseENU_northFarSide.qx = -newPoseENU_longEdgeEast.qy;
+                                    break;
+                                case ArenaDirection::LEFT:
+                                    // Rotate to align in the yaw plane
+                                    newPoseENU_northFarSide.y = -newPoseENU_longEdgeEast.y;
+                                    newPoseENU_northFarSide.x = -newPoseENU_longEdgeEast.x;
+
+                                    newPoseENU_northFarSide.qy = -newPoseENU_longEdgeEast.qy;
+                                    newPoseENU_northFarSide.qx = -newPoseENU_longEdgeEast.qx;
+                                    break;
+                                case ArenaDirection::NEAR:
+                                    // Rotate to align in the yaw plane
+                                    newPoseENU_northFarSide.y = -newPoseENU_longEdgeEast.x;
+                                    newPoseENU_northFarSide.x = newPoseENU_longEdgeEast.y;
+
+                                    newPoseENU_northFarSide.qy = -newPoseENU_longEdgeEast.qx;
+                                    newPoseENU_northFarSide.qx = newPoseENU_longEdgeEast.qy;
+                                    break;
+                            }
+
+                            theRb->setNewPoseENU_NorthFarSide( newPoseENU_northFarSide );
                         }
                     }
 
@@ -301,83 +373,5 @@ public:
             //std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
-
-/*
-    void data_handler(const boost::system::error_code& error, std::size_t bytes_transferred)
-    {
-        char* buf = recv_buffer.data();
-
-        qualisys_data_header_t header;
-        memcpy(&header, buf, sizeof(qualisys_data_header_t));
-        buf += sizeof(qualisys_data_header_t);
-
-        if (header.Type != QualisysType::Data) { goto bail_out; }
-
-        for (int i=0; i < header.ComponentCount; i++) {
-            //std::cout << i << std::endl;
-            qualisys_6dof_header_t header6d;
-            memcpy(&header6d, buf, sizeof(qualisys_6dof_header_t));
-            buf += sizeof(qualisys_6dof_header_t);
-
-            if (header6d.ComponentType != QualisysComponent::_6D) {
-                continue;
-            }
-
-            for (int j = 0; j < header6d.BodyCount; j++) {
-                qualisys_6dof_body_t body;
-                memcpy(&body, buf, sizeof(qualisys_6dof_body_t));
-                buf += sizeof(qualisys_6dof_body_t);
-
-                quaternion_t quat;
-                rotationMatrix_t rotM = { .m = {
-                        { body.r00, body.r01, body.r02 },
-                        { body.r10, body.r11, body.r12 },
-                        { body.r20, body.r21, body.r22 },
-                }};
-
-                quaternion_of_rotationMatrix(&quat, &rotM);
-
-                pose_t newPose = { header.MarkerTimestamp,
-                    body.x, body.y, body.z,
-                    quat.x, quat.y, quat.z, quat.w
-                    };
-
-                if (this->RBs.size() > 0) {
-                    this->RBs[0].setNewPoseENU_NorthFarSide( newPose );
-                }
-
-                // only the first body gets read
-                i = header.ComponentCount;
-                break;
-            }
-        }
-
-        this->agent->new_data_available( this->RBs );
-
-bail_out:
-        //std::cout << header.Type << std::endl;
-        wait();
-    }
-
-    void wait() {
-        this->socket_udp.async_receive_from(boost::asio::buffer(this->recv_buffer),
-            this->remote_endpoint,
-            boost::bind(&QualisysMocap::data_handler, this, boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred));
-    }
-
-
-    void send_tcp_command(const std::string& command)
-    {
-        qualisys_header_t header;
-        header.Size = command.length() + sizeof(qualisys_header_t);
-        header.Type = QualisysType::Command;
-
-        write(*this->socket_tcp, boost::asio::buffer(&header, sizeof(qualisys_header_t)));
-        write(*this->socket_tcp, boost::asio::buffer(command));
-
-        std::cout << "Sent command: " << command << std::endl;
-    }
-*/
 };
-
 #endif // H_QUALISYS_MOCAP
