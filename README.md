@@ -1,31 +1,33 @@
-# Unified Mocap Client
+# Unified Mocap Router
 
 This commandline program establishes connection to a motion capture system, 
 processes the rigid-body pose information and publishes them for use with
 different robotics systems.
 ```
-┌─────────┐             ┌────────────────────────┐                     
+┌─────────┐             ┌────────────────────────┐
 │ Motion  │────────────►│                        │  various    ┌──────────┐
-│ Capture │  TCP / UDP  │  Unified Mocap Client  ┼───────────► | Agent(s) |
+│ Capture │  TCP / UDP  │  Unified Mocap Router  ┼───────────► | Agent(s) |
 │ System  │◄────────────┤                        │ protocols   └──────────┘ 
-└─────────┘             └────────────────────────┘                     
+└─────────┘             └────────────────────────┘
 ```
 
 ## Support
 
-### Currently supported motion capture systems:
-* NaturalPoint, Inc. **"OptiTrack"** via its `NatNet SDK`
-* Qualisys, vis its `Qualisys CPP SDK`
+### Currently implemented motion capture systems:
+* NaturalPoint, Inc. **"OptiTrack"** via its `NatNet SDK` (stable)
+* Qualisys, vis its `Qualisys CPP SDK` (experimental)
 
-### Currently supported agents:
+### Currently implemented agents:
 
-|        Agent        | Means of Publishing                                                                  | Launch Command (Example)               |
-|:--------------------:|--------------------------------------------------------------------------------------|----------------------------------------|
-| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `./client optitrack ros2 -f 100 -c enu -r far -s 1 -n far`       |
-| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `./client optitrack ros2px4 -f 100 -c enu -r far -s 1 -n far`                      |
-| `udp`                | Data as a UDP stream                                                                 | `./client optitrack udp -f 100 -c enu -r far -s 1 -n far -i 192.168.209.100 -p 1234`   |
-| `ivy`                | Publish to an IVY bus                                                                   | `./client optitrack ivy -f 100 -c enu -r far -s 1 -n far`                          |
-| `console`            | Only to the terminal (if activated)                                                  | `./client test console --test_freq 100 -f 10 -c enu -r far -s 1 -n far`                      |
+|        Agent              | Means of Publishing                                                                   | Launch Command (Example)                                                             |
+|:-------------------------:|---------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `ROS2`                    | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                   | `./mocap-router optitrack ros2 -f 100 -c enu -r far -s 1 -n far`                           |
+| `ROS2PX4`                 | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry`  | `./mocap-router optitrack ros2px4 -f 100 -c enu -r far -s 1 -n far`                        |
+| `udp`                     | Data as a UDP stream (see `agents/udp_agent.hpp` for the structs)                     | `./mocap-router optitrack udp -f 100 -c enu -r far -s 1 -n far -i 192.168.209.100 -p 1234` |
+| `ivy`                     | Publish to an IVY bus                                                                 | `./mocap-router optitrack ivy -f 100 -c enu -r far -s 1 -n far`                            |
+| `mavlink` (experimental)  | Publish mavlink messages to a UDP endpoint (use mavlink-router to uplink to vehicle!) | `./mocap-router optitrack mavlink -f 100 -c enu -r far -s 1 -n far --autopilot px4`        |
+| `console`                 | Only to the terminal (if activated)                                                   | `./mocap-router test console --test_freq 100 -f 10 -c enu -r far -s 1 -n far`              |
+| `log`                     | Log to a file (csv only so far)                                                       | `./mocap-router test log --test_freq 100 -f 10 -c enu -r far -s 1 -n far -o ./output.csv`  |
 
 ### Currently supported platforms:
 
@@ -58,7 +60,7 @@ cmake -D'MOCAPS=test;optitrack' -D'AGENTS=console;ivy;ros2;ros2px4' .. && make
 
 Run with (see table at beginning on this readme)
 ```shell
-./client --help
+./mocap-router --help
 ```
 
 How to write your own agent?
@@ -103,9 +105,9 @@ Please open an Issue and we'll support you!
 The contents of this repository are licensed under **GNU General Public License v3.0** (see `LICENSE` file).
 
 Technische Universiteit Delft hereby disclaims all copyright interest in the
-program “Unified Mocap Client" (one line description of the content or function)
+program “Unified Mocap Router" (one line description of the content or function)
 written by the Author(s).
 
 Henri Werij, Dean of the Faculty of Aerospace Engineering
 
-© 2024, Anton Bredenbeck, Till Blaha
+© 2024,2025 Anton Bredenbeck, Till Blaha

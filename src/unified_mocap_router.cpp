@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License along
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#include "unified_mocap_client.hpp"
+#include "unified_mocap_router.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -31,14 +31,14 @@
 
 namespace po = boost::program_options;
 
-UnifiedMocapClient::UnifiedMocapClient(const UnifiedMocapClient &other)
+UnifiedMocapRouter::UnifiedMocapRouter(const UnifiedMocapRouter &other)
 {
     (void) other;
-    std::cerr << "Copy constructor for UnifiedMocapClient not supported. Exiting." << std::endl;
+    std::cerr << "Copy constructor for UnifiedMocapRouter not supported. Exiting." << std::endl;
     std::raise(SIGINT);
 }
 
-UnifiedMocapClient::UnifiedMocapClient(Mocap* mocap, Agent* agent) :
+UnifiedMocapRouter::UnifiedMocapRouter(Mocap* mocap, Agent* agent) :
     printMessages{false}, desc{"Allowed options"}, vm{}, publish_div{0}, publish_frequency{0.f}
 {
     // TODO: use builtin forward prediction with the latency estimates plus a 
@@ -52,7 +52,7 @@ UnifiedMocapClient::UnifiedMocapClient(Mocap* mocap, Agent* agent) :
     this->agent->banner();
 }
 
-void UnifiedMocapClient::keystroke_loop()
+void UnifiedMocapRouter::keystroke_loop()
 {
     // wait for keystrokes
     std::cout << std::endl << "Listening to messages! Press q to quit, Press t to toggle message printing" << std::endl;
@@ -71,7 +71,7 @@ void UnifiedMocapClient::keystroke_loop()
     }
 }
 
-void UnifiedMocapClient::start(int argc, const char *argv[])
+void UnifiedMocapRouter::start(int argc, const char *argv[])
 {
     this->add_base_po();
     this->mocap->add_extra_po(this->desc);
@@ -88,14 +88,14 @@ void UnifiedMocapClient::start(int argc, const char *argv[])
     }
 
     this->agent->pre_start();
-    this->keyThread = std::thread(&UnifiedMocapClient::keystroke_loop, this);
+    this->keyThread = std::thread(&UnifiedMocapRouter::keystroke_loop, this);
     this->agent->post_start();
 
     // some blocking code
     this->keyThread.join();
 }
 
-void UnifiedMocapClient::add_base_po()
+void UnifiedMocapRouter::add_base_po()
 {
     this->desc.add_options()
         ("help,h", "produce help message")
@@ -109,7 +109,7 @@ void UnifiedMocapClient::add_base_po()
     ;
 }
 
-void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
+void UnifiedMocapRouter::parse_base_po(int argc, char const *argv[])
 {
     po::store(po::parse_command_line(argc, argv, this->desc), this->vm);
     po::notify(vm);
@@ -289,21 +289,21 @@ void UnifiedMocapClient::parse_base_po(int argc, char const *argv[])
     }
 }
 
-void UnifiedMocapClient::banner()
+void UnifiedMocapRouter::banner()
 {
     // generator and font: https://patorjk.com/software/taag/#p=display&f=Small&t=Type%20Something%20
     std::cout<< R"(
-#################################################################################
-##  _   _      _  __ _        _ __  __                    ___ _ _         _    ##
-## | | | |_ _ (_)/ _(_)___ __| |  \/  |___  __ __ _ _ __ / __| (_)___ _ _| |_  ##
-## | |_| | ' \| |  _| / -_) _` | |\/| / _ \/ _/ _` | '_ \ (__| | / -_) ' \  _| ##
-##  \___/|_||_|_|_| |_\___\__,_|_|  |_\___/\__\__,_| .__/\___|_|_\___|_||_\__| ##
-##                                                 |_|                         ##
-#################################################################################)";
+#####################################################################################
+##  _   _      _  __ _        _ __  __                   ___          _            ##
+## | | | |_ _ (_)/ _(_)___ __| |  \/  |___  __ __ _ _ __| _ \___ _  _| |_ ___ _ _  ##
+## | |_| | ' \| |  _| / -_) _` | |\/| / _ \/ _/ _` | '_ \   / _ \ || |  _/ -_) '_| ##
+##  \___/|_||_|_|_| |_\___\__,_|_|  |_\___/\__\__,_| .__/_|_\___/\_,_|\__\___|_|   ##
+##                                                 |_|                             ##
+#####################################################################################)";
 }
 
 /*
-void UnifiedMocapClient::print_coordinate_system() const
+void UnifiedMocapRouter::print_coordinate_system() const
 {
     // There's probably a better way to do this but I can't think
     // of it. So a bunch of nested switch-case statements it is.

@@ -51,7 +51,7 @@ private:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         // add extra commandlien options if you need to.
-        // avoid those already used in UnifiedMocapClient::read_po()
+        // avoid those already used in UnifiedMocapRouter::read_po()
         //desc.add_options()
         //    ("dontmindme", boost::program_options::value<std::string>(), "Optimal extra argument for demonstration purposes")
         //    ("listofint", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")
@@ -81,7 +81,7 @@ private:
     void pre_start() override
     {
         // gets called after:
-        // 1. UnifiedMocapClient is constructed
+        // 1. UnifiedMocapRouter is constructed
         // 2. this class is constructed
         // 3. arguments are parsed
         // 4. MocapClient and its callback handlers are constructed

@@ -13,8 +13,8 @@
 // You should have received a copy of the GNU General Public License along
 // with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#ifndef H_UNIFIED_OPTITRACK_CLIENT
-#define H_UNIFIED_OPTITRACK_CLIENT
+#ifndef H_UNIFIED_OPTITRACK_ROUTER
+#define H_UNIFIED_OPTITRACK_ROUTER
 
 #include <vector>
 #include <mutex>
@@ -31,7 +31,7 @@
 
 char getch(void);
 
-class UnifiedMocapClient
+class UnifiedMocapRouter
 {
 private:
     Mocap* mocap;
@@ -54,12 +54,12 @@ private:
     void keystroke_loop();
 
 public:
-    UnifiedMocapClient(Mocap* mocap, Agent* agent);
-    UnifiedMocapClient(const UnifiedMocapClient &other);
-    ~UnifiedMocapClient() {};
+    UnifiedMocapRouter(Mocap* mocap, Agent* agent);
+    UnifiedMocapRouter(const UnifiedMocapRouter &other);
+    ~UnifiedMocapRouter() {};
 
     /* Function that needs to be called after creating
-     * the client to start everything */
+     * this object, to start everything */
     void start(int argc, char const *argv[]);
 
     boost::program_options::options_description desc;
@@ -67,4 +67,4 @@ public:
 };
 
 
-#endif //H_UNIFIED_OPTITRACK_CLIENT
+#endif //H_UNIFIED_OPTITRACK_ROUTER

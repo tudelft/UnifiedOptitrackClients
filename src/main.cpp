@@ -15,7 +15,7 @@
 
 #include <boost/filesystem.hpp>
 
-#include "unified_mocap_client.hpp"
+#include "unified_mocap_router.hpp"
 #include "mocap.hpp"
 #include "agent.hpp"
 
@@ -211,9 +211,9 @@ int main(int argc, char const *argv[])
 	signal(SIGINT, signal_handler);
 
 
-    // construct and run client
-    UnifiedMocapClient client = UnifiedMocapClient(mocap, agent);
-    client.start(argc-2, argv+2); // pointer arithmetic magic
+    // construct and run mocap-router
+    UnifiedMocapRouter router = UnifiedMocapRouter(mocap, agent);
+    router.start(argc-2, argv+2); // pointer arithmetic magic
 
     return 0;
 }

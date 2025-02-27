@@ -94,7 +94,7 @@ public:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         // add extra commandlien options if you need to.
-        // avoid those already used in UnifiedMocapClient::read_po()
+        // avoid those already used in UnifiedMocapRouter::read_po()
         //desc.add_options()
         //    ("dontmindme,d", boost::program_options::value<std::string>(), "Optimal extra argument for demonstration purposes")
         //    ("listofint,i", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")

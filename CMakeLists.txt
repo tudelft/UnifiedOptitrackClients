@@ -16,10 +16,10 @@
 cmake_minimum_required(VERSION 3.14)
 
 # project and executables
-project(optitrack_clients LANGUAGES CXX)
+project(mocap-router LANGUAGES CXX)
 
 file(GLOB SOURCES "src/*.cpp" "src/agents/*.cpp" "src/common/*.cpp" "src/mocaps/*.cpp")
-add_executable(client ${SOURCES})
+add_executable(mocap-router ${SOURCES})
 
 # ADD YOUR NEW AGENT TO THIS SEMICOLON-SEPARATED LIST!
 set(ALL_MOCAPS "optitrack;qualisys;test")
@@ -84,7 +84,7 @@ endif()
 # find external libraries and include for all agents
 find_package(Boost REQUIRED COMPONENTS program_options filesystem)
 include_directories(${Boost_INCLUDE_DIRS})
-target_link_libraries(client ${Boost_LIBRARIES})
+target_link_libraries(mocap-router ${Boost_LIBRARIES})
 
 if ("optitrack" IN_LIST MOCAPS)
     include(FetchContent)
@@ -97,7 +97,7 @@ if ("optitrack" IN_LIST MOCAPS)
     add_library(natnet_sdk SHARED IMPORTED)
     set_target_properties(natnet_sdk PROPERTIES IMPORTED_LOCATION ${natnet_sdk_content_SOURCE_DIR}/lib/libNatNet.so)
     target_include_directories(natnet_sdk INTERFACE ${natnet_sdk_content_SOURCE_DIR}/include)
-    target_link_libraries(client natnet_sdk)
+    target_link_libraries(mocap-router natnet_sdk)
 endif()
 
 if ("qualisys" IN_LIST MOCAPS)
@@ -113,19 +113,19 @@ if ("qualisys" IN_LIST MOCAPS)
         INSTALL_COMMAND cmake --build . --target install
     )
 
-    add_dependencies(client qualisys_cpp_sdk)
+    add_dependencies(mocap-router qualisys_cpp_sdk)
 
-    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/qualisys_cpp_sdk-prefix/src/qualisys_cpp_sdk-build/install/include/qualisys_cpp_sdk)
+    target_include_directories(mocap-router PUBLIC ${CMAKE_BINARY_DIR}/qualisys_cpp_sdk-prefix/src/qualisys_cpp_sdk-build/install/include/qualisys_cpp_sdk)
 
     #find_package(qualisys_cpp_sdk REQUIRED)
-    target_link_libraries(client ${CMAKE_BINARY_DIR}/qualisys_cpp_sdk-prefix/src/qualisys_cpp_sdk-build/install/lib/libqualisys_cpp_sdk.a)
+    target_link_libraries(mocap-router ${CMAKE_BINARY_DIR}/qualisys_cpp_sdk-prefix/src/qualisys_cpp_sdk-build/install/lib/libqualisys_cpp_sdk.a)
 
 endif()
 
-# Client-specific stuff
+# Agent-specific stuff
 if ("ivy" IN_LIST AGENTS)
     find_library(IVY_LIB NAMES ivy)
-    target_link_libraries(client ivy)
+    target_link_libraries(mocap-router ivy)
 
     find_package(PkgConfig REQUIRED)
     pkg_search_module(GLIB REQUIRED glib-2.0)
@@ -134,7 +134,7 @@ if ("ivy" IN_LIST AGENTS)
     link_directories(${GLIB_LIBRARY_DIRS})
 
     add_definitions(${GLIB_CFLAGS_OTHER})
-    target_link_libraries(client ${GLIB_LIBRARIES})
+    target_link_libraries(mocap-router ${GLIB_LIBRARIES})
 endif()
 
 if ("udp" IN_LIST AGENTS)
@@ -151,10 +151,10 @@ if ("mavlink" IN_LIST AGENTS)
         INSTALL_COMMAND cmake --build . --target install
     )
 
-    add_dependencies(client mavlink)
+    add_dependencies(mocap-router mavlink)
     # silence lots of warnings
-    target_compile_options(client PRIVATE "-Wno-address-of-packed-member")
-    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/mavlink-prefix/src/mavlink-build/install/include/)
+    target_compile_options(mocap-router PRIVATE "-Wno-address-of-packed-member")
+    target_include_directories(mocap-router PUBLIC ${CMAKE_BINARY_DIR}/mavlink-prefix/src/mavlink-build/install/include/)
 endif()
 
 if ("ros2" IN_LIST AGENTS)
@@ -162,7 +162,7 @@ if ("ros2" IN_LIST AGENTS)
     find_package(rclcpp REQUIRED)
     find_package(geometry_msgs REQUIRED)
 
-    ament_target_dependencies(client rclcpp geometry_msgs)
+    ament_target_dependencies(mocap-router rclcpp geometry_msgs)
 endif()
 
 if ("ros2px4" IN_LIST AGENTS)
@@ -170,7 +170,7 @@ if ("ros2px4" IN_LIST AGENTS)
     # General ROS 2 dependencies
     find_package(ament_cmake REQUIRED)
     find_package(rclcpp REQUIRED)
-    ament_target_dependencies(client rclcpp)
+    ament_target_dependencies(mocap-router rclcpp)
 
     # Specific PX4 msgs dependencies
     include(FetchContent)
@@ -191,7 +191,7 @@ if ("ros2px4" IN_LIST AGENTS)
     )
     FetchContent_MakeAvailable(px4_msgs)
     # Add the dependency to make sure it is compiled
-    add_dependencies(client px4_msgs)
+    add_dependencies(mocap-router px4_msgs)
 
     # Add the libraries
     add_library(px4_msgs_typesupport SHARED IMPORTED)
@@ -203,10 +203,10 @@ if ("ros2px4" IN_LIST AGENTS)
         ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/libpx4_msgs__rosidl_typesupport_fastrtps_cpp.so
     )
     # Link them to the target
-    target_link_libraries(client
+    target_link_libraries(mocap-router
         px4_msgs_typesupport
         px4_msgs_fastrtps
     )
     # Finally also define the include directories
-    target_include_directories(client PUBLIC ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/rosidl_generator_cpp)
+    target_include_directories(mocap-router PUBLIC ${CMAKE_BINARY_DIR}/_deps/px4_msgs-build/rosidl_generator_cpp)
 endif()

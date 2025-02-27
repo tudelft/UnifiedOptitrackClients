@@ -58,7 +58,7 @@ public:
     void add_extra_po(boost::program_options::options_description &desc) override
     {
         // add extra commandline options if you need to.
-        // avoid those already used in UnifiedMocapClient::read_po()
+        // avoid those already used in UnifiedMocapRouter::read_po()
         //desc.add_options()
         //    ("dontmindme,d", boost::program_options::value<std::string>(), "Optimal extra argument for demonstration purposes")
         //    ("listofint,i", boost::program_options::value<std::vector<unsigned int>>()->multitopken(), "Optional list of values for demonstration purposes")
@@ -110,7 +110,7 @@ public:
         // "processNewPose" must be invoked.
         // in this test example, we do this at the end of the send_test_data
         // thread.
-        // also see the optitrack client, which does it with callback
+        // also see the optitrack mocap, which does it with callback
         testDataSender = std::thread(&TestMocap::send_test_data,
                                     this,
                                     1000.f / this->freq // 10Hz

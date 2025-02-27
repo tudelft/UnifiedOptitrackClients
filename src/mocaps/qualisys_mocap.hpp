@@ -227,7 +227,7 @@ public:
         // "processNewPose" must be invoked.
         // in this test example, we do this at the end of the send_test_data
         // thread.
-        // also see the optitrack client, which does it with callback
+        // also see the optitrack mocap, which does it with callback
 
         const int majorVersion = 1;
         const int minorVersion = 24; // todo: double check this
