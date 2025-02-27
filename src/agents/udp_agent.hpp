@@ -1,26 +1,50 @@
-#include "unified_mocap_client.hpp"
+// Copyright 2024 Till Blaha (Delft University of Technology)
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+// more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program. If not, see <https://www.gnu.org/licenses/>.
+
+#ifndef UDP_AGENT_HPP
+#define UDP_AGENT_HPP
+
+#include "agent.hpp"
+
 #include <unistd.h>
 #include <csignal>
 #include "boost/asio.hpp"
 
 using namespace boost::asio;
 
-class Mocap2Udp : public UnifiedMocapClient
+class UdpAgent : public Agent
 {
 public:
-    Mocap2Udp() : _socket{_io_service}
+    UdpAgent() : _socket{_io_service}
     {
+    }
+
+    ~UdpAgent()
+    {
+        this->_socket.close();
+    }
+
+    void banner() override
+    {
+        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
-##  _   _ ___  ___  #############################################################
+##  _  _  __   __   ##
 ## | | | |   \| _ \ ##
 ## | |_| | |) |  _/ ##
 ##  \___/|___/|_|   ##
-######################
-)" << std::endl;
-    }
-    ~Mocap2Udp()
-    {
-        this->_socket.close();
+######################)" << std::endl;
     }
 
     void add_extra_po(boost::program_options::options_description &desc) override
@@ -52,7 +76,7 @@ public:
             this->_port = 5005;
         }
 
-        if (this->getStreamingIds().size() > 1) {
+        if (this->streaming_ids.size() > 1) {
             std::cout << "Number of streaming_ids and ac_ids must be equal to 1 for the udp client. Multiple not (yet) supported"
                 << std::endl;
             std::raise(SIGINT);
@@ -60,7 +84,7 @@ public:
 
         if(vm.count("ac_id")) {
             this->_ac_id = vm["ac_id"].as<std::vector<unsigned int>>();
-            if ( this->_ac_id.size() != this->getStreamingIds().size() ) {
+            if ( this->_ac_id.size() != this->streaming_ids.size() ) {
                 std::cout << "Number of ac_ids must be equal to streaming_ids" << std::endl;
                 std::raise(SIGINT);
             }
@@ -77,32 +101,27 @@ public:
     {
         this->_remote_endpoint = ip::udp::endpoint(ip::address::from_string(this->_client_ip), this->_port);
         this->_socket.open(ip::udp::v4());
+        this->initialized = true;
     }
 
-    void publish_data() override
+    bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
         static constexpr size_t Ni = sizeof(this->_ac_id[0]);
         static constexpr size_t Np = sizeof(pose_t);
-        static constexpr size_t Nd = sizeof(pose_der_t);
+        static constexpr size_t Nd = sizeof(twist_t);
 
-        unsigned int i = 0;
+        uint8_t buf[Ni+Np+Nd];
+        memcpy(buf, &(this->_ac_id[idx]), Ni);
+        memcpy(buf+Ni, &pose, Np);
+        memcpy(buf+Ni+Np, &twist, Nd);
 
-        //for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        //{
-            if (this->isUnpublishedRB(i)) {
-                pose_t pose = this->getPoseRB(i);
-                pose_der_t pose_der = this->getPoseDerRB(i);
-                uint8_t buf[Ni+Np+Nd];
-                memcpy(buf, &(this->_ac_id[i]), Ni);
-                memcpy(buf+Ni, &pose, Np);
-                memcpy(buf+Ni+Np, &pose_der, Nd);
-
-                boost::system::error_code err;
-                auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
-                if (err.failed())
-                    std::cout << "Failed with error " << err << std::endl;
-            }
-        //}
+        boost::system::error_code err;
+        auto sent = this->_socket.send_to(buffer(buf, Ni+Np+Nd), this->_remote_endpoint, 0, err);
+        if (err.failed()) {
+            std::cout << "Failed with error " << err << std::endl;
+            return false;
+        }
+        return true;
     }
 
 private:
@@ -113,3 +132,5 @@ private:
     ip::udp::socket _socket;
     ip::udp::endpoint _remote_endpoint;
 };
+
+#endif // ifndef UDP_AGENT_HPP

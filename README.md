@@ -1,73 +1,113 @@
-Currently supported clients:
+# Unified Mocap Router
 
-|        Client        | Means of Publishing                                                                  | Launch Command (Example)              |
-|:--------------------:|------------------------------------------------------|---------------------------------------|
-| `console` | Only to the terminal (if activated)                                                  | `mocap2console -c NED`                 |
-| `ivy`                | For the Ivy client                                                                   | `mocap2ivy -s 123`                   |
-| `udp`                | Data as a UDP stream                                                                 | `mocap2udp -i 192.168.209.100 -p 25` |
-| `log`                | Data directly dumped into a file                                                     | `mocap2log -n myfile.csv`            |
-| `ROS2`               | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                  | `mocap2ros2 --publish_topic UAV`     |
-| `ROS2PX4`            | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry` | `mocap2ros2px4 -f 120`               |
+This commandline program establishes connection to a motion capture system, 
+processes the rigid-body pose information and publishes them for use with
+different robotics systems.
+```
+┌─────────┐             ┌────────────────────────┐
+│ Motion  │────────────►│                        │  various    ┌──────────┐
+│ Capture │  TCP / UDP  │  Unified Mocap Router  ┼───────────► | Agent(s) |
+│ System  │◄────────────┤                        │ protocols   └──────────┘ 
+└─────────┘             └────────────────────────┘
+```
 
-Currently supported platforms:
+## Support
+
+### Currently implemented motion capture systems:
+* NaturalPoint, Inc. **"OptiTrack"** via its `NatNet SDK` (stable)
+* Qualisys, vis its `Qualisys CPP SDK` (experimental)
+
+### Currently implemented agents:
+
+|        Agent              | Means of Publishing                                                                   | Launch Command (Example)                                                             |
+|:-------------------------:|---------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `ROS2`                    | On two ros2 topics `/mocap/pose` and `/mocap/twist`                                   | `./mocap-router optitrack ros2 -f 100 -c enu -r far -s 1 -n far`                           |
+| `ROS2PX4`                 | As above + the published on the required PX4 topic `/fmu/in/vehicle_visual_odometry`  | `./mocap-router optitrack ros2px4 -f 100 -c enu -r far -s 1 -n far`                        |
+| `udp`                     | Data as a UDP stream (see `agents/udp_agent.hpp` for the structs)                     | `./mocap-router optitrack udp -f 100 -c enu -r far -s 1 -n far -i 192.168.209.100 -p 1234` |
+| `ivy`                     | Publish to an IVY bus                                                                 | `./mocap-router optitrack ivy -f 100 -c enu -r far -s 1 -n far`                            |
+| `mavlink` (experimental)  | Publish mavlink messages to a UDP endpoint (use mavlink-router to uplink to vehicle!) | `./mocap-router optitrack mavlink -f 100 -c enu -r far -s 1 -n far --autopilot px4`        |
+| `console`                 | Only to the terminal (if activated)                                                   | `./mocap-router test console --test_freq 100 -f 10 -c enu -r far -s 1 -n far`              |
+| `log`                     | Log to a file (csv only so far)                                                       | `./mocap-router test log --test_freq 100 -f 10 -c enu -r far -s 1 -n far -o ./output.csv`  |
+
+### Currently supported platforms:
 
 Ubuntu >= 22.04 on x86
 
-Building natively
--------------------
+## Building and Running
 
-Build all with:
+### Natively
+
+Prerequisites vary per agent. Currently, these are known:
+
+|   Agent   | Known Prerequisites                                                                      |
+|:---------:|------------------------------------------------------------------------------------------|
+| `all`     | `libboost-all-dev` installed with `apt`                                       |
+| `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
+| `ros2`    | `ros-$ROS_DISTRO-base`, needs to be sourced for compilation (execute `. scripts/source_ros_and_msgs.sh`)                                   |
+| `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
+
+Build for all agents with:
 ```shell
 mkdir build && cd build
 cmake .. && make
 ```
 
-Build only some with (for example):
+Build only for some agents with (for example):
 ```shell
 mkdir build && cd build
-cmake -D'CLIENTS=console;ivy;ros2;ros2px4' .. && make
+cmake -D'MOCAPS=test;optitrack' -D'AGENTS=console;ivy;ros2;ros2px4' .. && make
 ```
 
-## Prerequisites
+Run with (see table at beginning on this readme)
+```shell
+./mocap-router --help
+```
 
-Prerequisites vary per client. Currently, these are known:
-
-|   Client  | Known Prerequisites                                                                      |
-|:---------:|------------------------------------------------------------------------------------------|
-| `all`     | `libboost-all-dev` installed with `apt`                                       |
-| `ivy`     | `ivy-c-dev` installed from `ppa:paparazzi-uav/ppa`                                       |
-| `ros2`    | `ros-humble-base`, needs to be sourced for compilation                                   |
-| `ros2px4` | As above + `px4_msgs` must be sourced to run (execute `. scripts/source_ros_and_msgs.sh`)|
-
-Build using Docker
-------------------
-
-Each client has its own `dockerfile` to make compilation across platforms easier. For this first install docker as is explained on the official [website](https://docs.docker.com/engine/install).
-
-Then you can build your docker image using e.g., 
-
-    docker build -t consoleclient . -f ./dockerfiles/console.dockerfile 
-
-Where `-t` defines the name of the docker image and `-f` defines the file path to the `dockerfile`.
-Afterward, you can run the docker image with:
-
-    docker run -it --rm --net host consoleclient cmdline args of your choice
-
-When running the logging client with docker you have to mount a volume such that the written file will persist on the host machine. 
-The client expects the volume to be mounted under `/data`, i.e. the command would be something like to save the data in the current directory:
-
-    docker run -it --net=host -v ./:/data logclient -s 1 -o data.csv
-
-
-How to write your own client?
+How to write your own agent?
 ==============================
 
-To write your own client it has to inheret from the base class `UnifiedMocapClient` defined in `unified_mocap_client.hpp` and needs to implement the 
+To add support for your own agent it has to inheret from the base class `Agent` defined in `agent.hpp` and needs to implement the 
 
     void publish_data()
 function. It _can_ also implement 
 
     void add_extra_po(boost::program_options::options_description &desc)
     void parse_extra_po(const boost::program_options::variables_map &vm)
-Afterward, the client needs to be added to the `CMakeList.txt` file and added to the main executable `main.cpp` using compile options. A simple example of how to do this is the `ConsoleClient` defined in `clients/console_client.hpp`.
-    
+Afterward, the agent needs to be added to the `CMakeList.txt` file. A simple example of how to do this is the `ConsoleAgent` defined in `agents/console_agent.hpp`.
+
+## How to add support for a different Motion Capture System?
+
+Please open an Issue and we'll support you!
+
+
+* 2025-02-28 -- 1.1.0 -- Second Release
+
+## Authors
+
+* Anton Bredenbeck ([@antbre](https://github.com/antbre), Delft University of Technology, a.bredenbeck - @ - tudelft.nl)
+* Till Blaha ([@tblaha](https://github.com/tblaha), Delft University of Technology, t.m.blaha - @ - tudelft.nl)
+
+## Structure
+```
+.
+├── agents           # contains the agent definitions
+├── include          # headers
+├── scripts          # utility scripts
+├── src              # implementation of data receiving and pose calculations
+├── CMakeLists.txt
+└── README.md
+```
+
+## License
+
+[![License](https://img.shields.io/badge/License-GPL--3.0--or--later-4398cc.svg?logo=spdx)](https://spdx.org/licenses/GPL-3.0-or-later.html)
+
+The contents of this repository are licensed under **GNU General Public License v3.0** (see `LICENSE` file).
+
+Technische Universiteit Delft hereby disclaims all copyright interest in the
+program “Unified Mocap Router" (one line description of the content or function)
+written by the Author(s).
+
+Henri Werij, Dean of the Faculty of Aerospace Engineering
+
+© 2024,2025 Anton Bredenbeck, Till Blaha

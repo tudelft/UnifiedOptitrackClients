@@ -1,4 +1,22 @@
-#include "unified_mocap_client.hpp"
+// Copyright 2024 Till Blaha (Delft University of Technology)
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+// more details.
+//
+// You should have received a copy of the GNU General Public License along
+// with this program. If not, see <https://www.gnu.org/licenses/>.
+
+#ifndef LOG_AGENT_HPP
+#define LOG_AGENT_HPP
+
+#include "agent.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -14,24 +32,30 @@ std::ostream& operator<<(std::ostream& lhs, LogType e) {
     return lhs;
 } 
 
-class Mocap2Log : public UnifiedMocapClient
+class LogAgent : public Agent
 {
 public:
-    Mocap2Log() : _logType{LogType::CSV}
+    LogAgent() : _logType{LogType::CSV}
     {
+    }
+
+    ~LogAgent()
+    {
+        if (_logFile.is_open()) {
+            _logFile.close();
+        }
+    }
+
+    void banner() override
+    {
+        // ASCII art generator https://patorjk.com/software/taag/#p=display&f=Small&t=Console%20
         std::cout<< R"(
-##  _               #############################################################
+##  _               ##
 ## | |   ___  __ _  ##
 ## | |__/ _ \/ _` | ##
 ## |____\___/\__, | ##
 ##           |___/  ##
-######################
-)" << std::endl;
-    }
-
-    ~Mocap2Log() {
-        if (_logFile.is_open())
-            _logFile.close();
+######################)" << std::endl;
     }
 
 private:
@@ -74,26 +98,18 @@ private:
         // write header
         _logFile << "timestamp[us],RBid,x[m],y[m],z[m],qx,qy,qz,qw,vx[m/s],vy[m/s],vz[m/s],wxbody[rad/s],wybody[rad/s],wzbody[rad/s]";
         _logFile << std::endl;
+        this->initialized = true;
     }
 
-    void publish_data() override
+    bool publish_data(int idx, pose_t& pose, twist_t& twist) override
     {
-        for(uint8_t i = 0; i < this->getNTrackedRB(); i++)
-        {
-            if (this->isUnpublishedRB(i)) {
-                unsigned int streaming_id = this->getStreamingId(i);
-                pose_t pose = this->getPoseRB(i);
-                pose_der_t pose_der = this->getPoseDerRB(i);
-
-                _logFile << boost::format("%1%,%2%,") % pose.timeUs % streaming_id;
-                _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
+        _logFile << boost::format("%1%,%2%,") % pose.timeUs % this->streaming_ids.at(idx);
+        _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%,%7%,")
                     % pose.x % pose.y % pose.z % pose.qx % pose.qy % pose.qz % pose.qw;
-                _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")
-                    % pose_der.x % pose_der.y % pose_der.z % pose_der.wx % pose_der.wy % pose_der.wz;
-
-                _logFile << std::endl;
-            }
-        }
+        _logFile << boost::format("%1%,%2%,%3%,%4%,%5%,%6%")
+                    % twist.vx % twist.vy % twist.vz % twist.wx % twist.wy % twist.wz;
+        _logFile << std::endl;
+        return true;
     }
 
 private:
@@ -101,3 +117,5 @@ private:
     std::string _logFilename;
     std::ofstream _logFile;
 };
+
+#endif // ifndef LOG_AGENT_HPP
